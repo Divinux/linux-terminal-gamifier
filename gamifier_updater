@@ -2,7 +2,7 @@
 
 # Used to update the gamifier script from v1 to v1.1
 # Run the following commands to update:
-#    curl --output ~/gamifier_updater "https://raw.githubusercontent.com/Divinux/dotfiles/refs/heads/main/scripts/gamifier_updater"
+#    curl --output ~/gamifier_updater "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier_updater"
 #    chmod +x gamifier_updater
 #    ./gamifier_updater
 # Then restart your terminal
