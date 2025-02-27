@@ -1,0 +1,341 @@
+#!/bin/bash
+
+# =============================
+# Linux Terminal Gamifier v1.1
+# =============================
+# This script gamifies your terminal by tracking experience points and levels
+# based on the number of commands you execute. Newly found commands give more exp,
+# repeated commands less, wrong commands still give a little. At least you tried.
+#
+# Setup:
+# 1. Save this file in your home directory (or anywhere else)
+#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
+# 2. Source the file in your bashrc. This can be done manually or (assuming you saved it in your home dir) by running
+#        echo 'source ~/gamifier' >> ~/.bashrc
+# 3. Ensure your history is reloaded after each command, then call update_exp
+#    If you have not yet modified your PROMPT_COMMAND, you can simply run
+#        echo 'export PROMPT_COMMAND="history -a; history -n; update_exp; $PROMPT_COMMAND"' >> ~/.bashrc
+# 4. Restart your terminal or run
+#        source ~/.bashrc
+#
+# Additional info:
+# 1. This script creates a directory under $XDG_DATA_HOME (defaults to ~/.local/share/ and uses it as a
+#    fallback if $XDG_DATA_HOME is not set) with two additional files:
+#        .exp is used to track the current experience amount and level
+#        .usedcommands contains all commands the user used so far
+#    To continue tracking your progress on a new install, just copy this directory over to it.
+# 2. You may want to increase your HISTSIZE and HISTFILESIZE.
+#    Setting them to nothing, i.e. "HISTSIZE=" and "HISTFILESIZE=" makes them unlimited
+# 3. You can use checkrank at any time to check your current progress.
+# 4. Use checkstats to display usage stats.
+# 5. Use ghelp to display a short info message.
+#
+# Uninstall:
+# 1. Remove 'source ~/gamifier' and update_exp; from your bashrc
+# 2. Delete the gamifier file, and the ~/.local/share/gamifier directory
+# 3. Restart your terminal
+
+# Define save directory
+SAVE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gamifier"
+mkdir -p "$SAVE_DIR"
+
+exp_file="$SAVE_DIR/.exp"
+used_commands_file="$SAVE_DIR/.usedcommands"
+
+# Notification settings
+notify_on_new=true
+notify_on_reused=false
+notify_on_false_new=true
+notify_on_false_reused=false
+
+# Custom messages
+msg_new_command="New command discovered!"
+msg_repeat_command="Experience gained!"
+msg_false_new_command="Incorrect command! At least you tried!"
+msg_false_repeat_command="Trying incorrect command again..."
+
+# EXP settings
+exp_new_command=5
+exp_reused_command=2
+exp_false_new_command=1
+exp_false_reused_command=0
+
+# EXP curve
+exp_increase_percent=6
+exp_base=10
+
+# Initialize .exp file if it doesn't exist
+if [ ! -f "$exp_file" ]; then
+    echo "EXP=0" > "$exp_file"
+    echo "LVL=1" >> "$exp_file"
+    echo "TOTAL_COMMANDS=0" >> "$exp_file"
+fi
+
+# Initialize .usedcommands file if it doesn't exist
+if [ ! -f "$used_commands_file" ]; then
+    touch "$used_commands_file"
+fi
+
+# Function to get the current EXP
+get_exp() {
+    grep "EXP=" "$exp_file" | cut -d'=' -f2
+}
+
+# Function to set EXP
+set_exp() {
+    sed -i "s/^EXP=.*/EXP=$1/" "$exp_file"
+}
+
+# Function to get the current LVL
+get_lvl() {
+    grep "LVL=" "$exp_file" | cut -d'=' -f2
+}
+
+# Function to determine EXP required for next level
+exp_needed_for_level() {
+    local lvl=$(get_lvl)
+
+    if [ "$lvl" -eq 1 ]; then
+        echo "$exp_base"
+    else
+        echo $(echo "$exp_base * (($exp_increase_percent + 100) ^ ($lvl - 1)) / (100 ^ ($lvl - 1))" | bc)
+    fi
+}
+
+# Function to level up if needed
+level_up() {
+    local exp=$(get_exp)
+    local lvl=$(get_lvl)
+    local needed=$(exp_needed_for_level)
+
+    while [ "$exp" -ge "$needed" ]; do
+        new_lvl=$((lvl + 1))
+        level_up_message "$new_lvl"
+        sed -i "s/^LVL=.*/LVL=$new_lvl/" "$exp_file"
+        exp=$((exp - needed))
+        needed=$(exp_needed_for_level)
+        lvl=$new_lvl
+    done
+    set_exp "$exp"
+}
+
+# Get initial history count
+histfile="$HOME/.bash_history"
+prev_hist_count=$(wc -l < "$histfile")
+
+# Get HISTSIZE limit
+hist_size=${HISTSIZE:-500}
+
+# Function to update or add command usage
+update_command_usage() {
+    local command="$1"
+    if grep -q "^$command:::" "$used_commands_file"; then
+        local current_count=$(awk -F ':::' -v cmd="$command" '$1 == cmd {print $2}' "$used_commands_file")
+        local new_count=$((current_count + 1))
+        sed -i "s|^$command:::$current_count|$command:::$new_count|" "$used_commands_file"
+    else
+        echo "$command:::1" >> "$used_commands_file"
+    fi
+}
+
+
+# Helper function to handle command use
+handle_command() {
+    local command=$1
+    local exp_increment=$2
+    local message=$3
+    local notify=$4
+
+    # Update command usage count
+    update_command_usage "$command"
+
+    # Update EXP
+    exp=$(get_exp)
+    new_exp=$((exp + exp_increment))
+    set_exp "$new_exp"
+
+    # Update total commands count
+    total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
+    total_commands=$((total_commands + 1))
+    sed -i "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total_commands/" "$exp_file"
+
+    # If notification is enabled, print message
+    if [ "$notify" = true ]; then
+        echo "$message"
+		# If any EXP was gained, echo the new EXP to the console
+        if [ "$exp_increment" -gt 0 ]; then
+            echo "Current EXP: $new_exp"
+        fi
+    fi
+}
+
+# Hook into the shell prompt
+update_exp() {
+    local new_count=$(wc -l < "$histfile")
+
+    # Check if history file has been truncated
+    if [ "$new_count" -lt "$prev_hist_count" ] || [ "$new_count" -ge "$hist_size" ]; then
+        echo "Warning! HISTSIZE was reached! Gamifier will not work!"
+        echo "Please increase your HISTSIZE!"
+        return
+    fi
+
+    if [ "$new_count" -gt "$prev_hist_count" ]; then
+        prev_hist_count="$new_count"
+
+        # Get the last command entered
+        local last_command=$(tail -n 1 "$histfile")
+        local first_word=$(echo "$last_command" | awk '{print $1}')
+
+        # If command starts with sudo, extract the actual command being run
+        if [[ "$first_word" == "sudo" ]]; then
+            first_word=$(echo "$last_command" | awk '{print $2}')
+        fi
+
+        # Check if the command is valid (not "command not found")
+        if command -v "$first_word" &> /dev/null; then
+            # If valid, handle it with exp_new_command for first-time use, exp_reused_command for subsequent use
+            if ! grep -q "^$last_command:::" "$used_commands_file"; then
+                handle_command "$last_command" "$exp_new_command" "$msg_new_command" "$notify_on_new"
+            else
+                handle_command "$last_command" "$exp_reused_command" "$msg_repeat_command" "$notify_on_reused"
+            fi
+        else
+            # If invalid, handle it with exp_false_new_command for first-time use, exp_false_reused_command for subsequent invalid use
+            if ! grep -q "^$last_command:::" "$used_commands_file"; then
+                handle_command "$last_command" "$exp_false_new_command" "$msg_false_new_command" "$notify_on_false_new"
+            else
+                handle_command "$last_command" "$exp_false_reused_command" "$msg_false_repeat_command" "$notify_on_false_reused"
+            fi
+        fi
+
+        # Check for level up
+        level_up
+    fi
+}
+
+# Checks the current level
+checkrank() {
+    local level=$(get_lvl)
+    local exp=$(get_exp)
+    local needed=$(exp_needed_for_level)
+    local rank=$(get_rank "$level")
+    local rank_padding_left=$(( (26 - ${#rank}) / 2 ))
+    local rank_padding_right=$(( 26 - ${#rank} - rank_padding_left ))
+    local rank_line="||$(printf '%*s' $rank_padding_left) $rank $(printf '%*s' $rank_padding_right)||"
+    local exp_padding_left=$(( (26 - ${#exp} - ${#needed} - 6) / 2 ))
+    local exp_padding_right=$(( 26 - ${#exp} - ${#needed} - 6 - exp_padding_left ))
+    local exp_line="||$(printf '%*s' "$exp_padding_left") EXP: $exp/$needed $(printf '%*s' "$exp_padding_right")||"
+    local quote=$(get_quote "$level")
+
+    printf "\n================================\n"
+    printf "||       CURRENT LEVEL        ||\n"
+    printf "||         Level: %-5s       ||\n" "$level"
+    printf "%s\n" "$exp_line"
+    printf "%s\n" "$rank_line"
+    printf "================================\n"
+    show_exp_progress
+    printf "================================\n"
+    printf "%s\n" "$quote"
+    printf "================================\n\n"
+}
+
+# Level-up message
+level_up_message() {
+    local level=$1
+    local rank=$(get_rank "$level")
+    local rank_padding_left=$(( (26 - ${#rank}) / 2 ))
+    local rank_padding_right=$(( 26 - ${#rank} - rank_padding_left ))
+    local rank_line="||$(printf '%*s' $rank_padding_left) $rank $(printf '%*s' $rank_padding_right)||"
+    local quote=$(get_quote "$level")
+
+    printf "\n================================\n"
+    printf "||          LEVEL UP!         ||\n"
+    printf "||    You reached level %-5s ||\n" "$level"
+    printf "%s\n" "$rank_line"
+    printf "||                            ||\n"
+    printf "||   ░░░░░░░░░▄▄▄▄▄░░░░░░░░   ||\n"
+    printf "||   ░░░░░▄██████████▄░░░░░   ||\n"
+    printf "||   ░░░▄██████████████▄░░░   ||\n"
+    printf "================================\n"
+    printf "%s\n" "$quote"
+    printf "================================\n\n"
+}
+
+# Displays exp progress bar
+show_exp_progress() {
+  local exp=$(get_exp)
+  local needed=$(exp_needed_for_level)
+  local progress=$((exp * 30 / needed))
+  printf "[%-30s] \n" "$(printf '#%.0s' $(seq 1 $progress))"
+}
+
+# Level-up ranks
+get_rank() {
+    local lvl=$1
+    case $lvl in
+        [1-4]) echo "Terminal Newbie" ;;
+        [5-9]) echo "Script Kiddie" ;;
+        1[0-4]) echo "Command Line Enthusiast" ;;
+        1[5-9]) echo "Shell Apprentice" ;;
+        2[0-4]) echo "Daemon Handler" ;;
+        2[5-9]) echo "System Sorcerer" ;;
+        3[0-9]) echo "Unix Warrior" ;;
+        4[0-9]) echo "Pipe Artisan" ;;
+        5[0-9]) echo "Network Nomad" ;;
+        6[0-9]) echo "Bash Wizard" ;;
+        7[0-9]) echo "Shell Savant" ;;
+        8[0-9]) echo "Linux Warlock" ;;
+        9[0-9]) echo "Archmage of the CLI" ;;
+        *) echo "Root God" ;;
+    esac
+}
+
+# rank quotes
+get_quote() {
+    local lvl=$1
+    case $lvl in
+        [1-4]) printf -- "  -\"Wait, how do I exit Vim?\"" ;;
+        [5-9]) printf -- "  -\"I copied this from Stack \n    Overflow… hope it works.\"" ;;
+        1[0-4]) printf -- "  -\"I run htop just to watch \n    the colors.\"" ;;
+        1[5-9]) printf -- " -\"My .bashrc is literal art.\"" ;;
+        2[0-4]) printf -- "  -\"I made a service… and it \n    stays running!\"" ;;
+        2[5-9]) printf -- "  -\"My one-liner fixed your \n    DNS, and brewed coffee.\"" ;;
+        3[0-9]) printf -- "  -\"I herd servers like cats.\"" ;;
+        4[0-9]) printf -- "    -\"My scripts have error\n    handling… and comments.\"" ;;
+        5[0-9]) printf -- "  -\"I SSH through three hops\n    just to say ‘hi’.\"" ;;
+        6[0-9]) printf -- "  -\"I see regex in my sleep.\"" ;;
+        7[0-9]) printf -- "   -\"I use vi to edit emacs\n       configs. Fight me.\"" ;;
+        8[0-9]) printf -- "    -\"I filed a bug report…\n       and then fixed it.\"" ;;
+        9[0-9]) printf -- "  -\"I speak in ANSI escape\n    codes and dream in JSON.\"" ;;
+        *) printf -- "       -\"/dev/null is my\n         recycling bin.\"" ;;
+    esac
+}
+
+# Function to display stats
+checkstats() {
+    local total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
+    local most_used_command=$(awk -F ':::' '{if($2 > max){max=$2; cmd=$1}} END {print cmd " (" max " times)"}' "$used_commands_file")
+
+    echo "Total Commands Used: $total_commands"
+    echo "Most Used Command: ${most_used_command:-None yet}"
+}
+
+# Displays help information
+ghelp() {
+    cat <<EOF
+
+# =============================
+# Linux Terminal Gamifier v1.1
+# =============================
+# This script gamifies your terminal by tracking experience points and levels
+# based on the number of commands you execute. Newly found commands give more exp,
+# repeated commands less, wrong commands still give a little. At least you tried.
+#
+# You can use checkrank at any time to check your current progress.
+# Use checkstats to display usage stats.
+# Use ghelp to display a short info message.
+
+EOF
+}
+
