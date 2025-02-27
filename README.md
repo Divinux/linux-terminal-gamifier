@@ -1,5 +1,4 @@
 # Linux Terminal Gamifier
-v1.1
 
 This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried.
 
