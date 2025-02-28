@@ -219,14 +219,20 @@ check_achievements() {
 
             if [ "$unlock" = true ]; then
                 echo "Achievement Unlocked: $name - $description!"
-                updates+=("s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/")
+                # Escape special characters in sed pattern
+                local escaped_name=$(echo "$name" | sed 's/[\/&]/\\&/g')
+                local escaped_desc=$(echo "$description" | sed 's/[\/&]/\\&/g')
+                local escaped_req=$(echo "$requirement" | sed 's/[\/&]/\\&/g')
+                local escaped_type=$(echo "$type" | sed 's/[\/&]/\\&/g')
+                updates+=("$escaped_name:$escaped_desc:$escaped_req:$escaped_type:LOCKED")
             fi
         fi
     done < "$achievements_file"
 
-    if [ "${#updates[@]}" -gt 0 ]; then
-        sed -i "${updates[@]}" "$achievements_file"
-    fi
+    # Apply updates one by one to avoid sed syntax errors
+    for entry in "${updates[@]}"; do
+        sed -i "s/^$entry/${entry/LOCKED/UNLOCKED}/" "$achievements_file"
+    done
 }
 
 # Get initial history count
