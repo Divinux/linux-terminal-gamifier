@@ -20,9 +20,10 @@
 #
 # Additional info:
 # 1. This script creates a directory under $XDG_DATA_HOME (defaults to ~/.local/share/ and uses it as a
-#    fallback if $XDG_DATA_HOME is not set) with two additional files:
+#    fallback if $XDG_DATA_HOME is not set) with three additional files:
 #        .exp is used to track the current experience amount and level
 #        .usedcommands contains all commands the user used so far
+#        .achievements tracks the status of all achievements
 #    To continue tracking your progress on a new install, just copy this directory over to it.
 # 2. You may want to increase your HISTSIZE and HISTFILESIZE.
 #    Setting them to nothing, i.e. "HISTSIZE=" and "HISTFILESIZE=" makes them unlimited
@@ -445,9 +446,9 @@ checkstats() {
     echo "Achievments ($unlocked_count/$total_count)"
     echo "Achievements Unlocked ($unlocked_count):"
     grep ":UNLOCKED" "$achievements_file" | awk -F ':' '{print "✔ " $1 " - " $2}'
-    echo
-	echo "Locked Achievements ($locked_count):"
-    grep ":LOCKED" "$achievements_file" | awk -F ':' '{print "✖ " $1 " - " $2}'
+    #echo
+	#echo "Locked Achievements ($locked_count):"
+    #grep ":LOCKED" "$achievements_file" | awk -F ':' '{print "✖ " $1 " - " $2}'
 }
 
 # Displays help information
