@@ -23,9 +23,10 @@ This script gamifies your terminal by tracking experience points and levels base
 
 ## Additional Information
 
-- This script creates a directory under `$XDG_DATA_HOME` (defaults to `~/.local/share/` if `$XDG_DATA_HOME` is not set) with two additional files:
+- This script creates a directory under `$XDG_DATA_HOME` (defaults to `~/.local/share/` if `$XDG_DATA_HOME` is not set) with three additional files:
   - `.exp`: Tracks the current experience amount and level.
   - `.usedcommands`: Contains all commands the user has used so far.
+  - `.achievements`: Tracks the status of all achievements.
 - To continue tracking your progress on a new install, just copy this directory over.
 - You may want to increase your `HISTSIZE` and `HISTFILESIZE`.
   - Setting them to nothing, i.e., `HISTSIZE=` and `HISTFILESIZE=`, makes them unlimited.
