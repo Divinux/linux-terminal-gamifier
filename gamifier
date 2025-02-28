@@ -195,37 +195,38 @@ level_up() {
 }
 
 check_achievements() {
-    local total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
+    local total_commands=$(awk -F'=' '/TOTAL_COMMANDS=/ {print $2}' "$exp_file")
     local unique_commands=$(wc -l < "$used_commands_file")
     local last_command=$(tail -n 1 "$HOME/.bash_history")
-    local first_word=$(echo "$last_command" | awk '{print $1}')
+    local first_word=${last_command%% *}
 
-    while IFS= read -r line; do
-        # Extract fields using cut instead of relying on IFS
-        local name=$(echo "$line" | cut -d':' -f1)
-        local description=$(echo "$line" | cut -d':' -f2)
-        local requirement=$(echo "$line" | cut -d':' -f3)
-        local type=$(echo "$line" | cut -d':' -f4)
-        local status=$(echo "$line" | cut -d':' -f5)
-
+    local updates=()
+    while IFS=: read -r name description requirement type status; do
         if [ "$status" = "LOCKED" ]; then
-            local current_count=0
-            if [ "$type" = "unique" ]; then
-                current_count="$unique_commands"
-            elif [ "$type" = "total" ]; then
-                current_count="$total_commands"
-            fi
-            if [ "$type" = "command" ]; then
-                if [[ "$first_word" == $requirement ]]; then
-                    echo "Achievement Unlocked: $name - $description!"
-                    sed -i "s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/" "$achievements_file"
-                fi
-            elif [ "$current_count" -ge "$requirement" ]; then
+            local unlock=false
+
+            case "$type" in
+                unique)
+                    [ "$unique_commands" -ge "$requirement" ] && unlock=true
+                    ;;
+                total)
+                    [ "$total_commands" -ge "$requirement" ] && unlock=true
+                    ;;
+                command)
+                    [ "$first_word" = "$requirement" ] && unlock=true
+                    ;;
+            esac
+
+            if [ "$unlock" = true ]; then
                 echo "Achievement Unlocked: $name - $description!"
-                sed -i "s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/" "$achievements_file"
+                updates+=("s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/")
             fi
         fi
     done < "$achievements_file"
+
+    if [ "${#updates[@]}" -gt 0 ]; then
+        sed -i "${updates[@]}" "$achievements_file"
+    fi
 }
 
 # Get initial history count
