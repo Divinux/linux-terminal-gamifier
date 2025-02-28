@@ -9,7 +9,7 @@
 #
 # Setup:
 # 1. Save this file in your home directory (or anywhere else)
-#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
+#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
 # 2. Source the file in your bashrc. This can be done manually or (assuming you saved it in your home dir) by running
 #        echo 'source ~/gamifier' >> ~/.bashrc
 # 3. Ensure your history is reloaded after each command, then call update_exp
