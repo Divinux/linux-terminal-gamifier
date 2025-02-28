@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================
-# Linux Terminal Gamifier v1.1
+# Linux Terminal Gamifier v1.2
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -41,6 +41,7 @@ mkdir -p "$SAVE_DIR"
 
 exp_file="$SAVE_DIR/.exp"
 used_commands_file="$SAVE_DIR/.usedcommands"
+achievements_file="$SAVE_DIR/.achievements"
 
 # Notification settings
 notify_on_new=true
@@ -75,7 +76,81 @@ fi
 if [ ! -f "$used_commands_file" ]; then
     touch "$used_commands_file"
 fi
-
+# Initialize achievements file if it doesn't exist
+if [ ! -f "$achievements_file" ]; then
+    cat <<EOF > "$achievements_file"
+Bootstrapped:Use 5 unique commands:5:unique:LOCKED
+Init Process:Use 10 unique commands:10:unique:LOCKED
+System Call:Use 15 unique commands:15:unique:LOCKED
+Interrupt Handler:Use 20 unique commands:20:unique:LOCKED
+Pull Request:Use 25 unique commands:25:unique:LOCKED
+Firmware Flash:Use 30 unique commands:30:unique:LOCKED
+Overclocked:Use 40 unique commands:40:unique:LOCKED
+Memory Leak:Use 50 unique commands:50:unique:LOCKED
+Merge Conflict:Use 75 unique commands:75:unique:LOCKED
+Infinite Rebase:Use 100 unique commands:100:unique:LOCKED
+Segfault:Use 125 unique commands:125:unique:LOCKED
+Cherry-Picked:Use 150 unique commands:150:unique:LOCKED
+Force Push:Use 200 unique commands:200:unique:LOCKED
+Fork Bomb:Use 250 unique commands:250:unique:LOCKED
+Detached HEAD:Use 350 unique commands:350:unique:LOCKED
+Kernel Panic:Use 500 unique commands:500:unique:LOCKED
+First Steps:Use 10 total commands:10:total:LOCKED
+Tentative Exploration:Use 20 total commands:20:total:LOCKED
+Getting Comfortable:Use 30 total commands:30:total:LOCKED
+Confidence Rising:Use 40 total commands:40:total:LOCKED
+Settling In:Use 50 total commands:50:total:LOCKED
+Building Momentum:Use 100 total commands:100:total:LOCKED
+Familiar Ground:Use 250 total commands:250:total:LOCKED
+Flow State Achieved:Use 500 total commands:500:total:LOCKED
+In the Zone:Use 750 total commands:750:total:LOCKED
+Unshakable Rhythm:Use 1000 total commands:1000:total:LOCKED
+Second Nature:Use 2500 total commands:2500:total:LOCKED
+Beyond Muscle Memory:Use 5000 total commands:5000:total:LOCKED
+Terminal Nirvana:Use 10000 total commands:10000:total:LOCKED
+Superuser:Run a command with sudo:sudo:command:LOCKED
+Explorer:List files in a directory:ls:command:LOCKED
+Nomad:Change directories:cd:command:LOCKED
+Pathfinder:Display the current directory:pwd:command:LOCKED
+Creator:Create a new file:touch:command:LOCKED
+Architect:Create a new directory:mkdir:command:LOCKED
+Destroyer:Delete a file:rm:command:LOCKED
+Cleaner:Remove an empty directory:rmdir:command:LOCKED
+Duplicator:Copy a file:cp:command:LOCKED
+Transporter:Move or rename a file:mv:command:LOCKED
+System Seer:View system information:uname:command:LOCKED
+Survivor:Check system uptime:uptime:command:LOCKED
+Space Navigator:Show disk space usage:df:command:LOCKED
+Memory Master:Display RAM usage:free:command:LOCKED
+Identity Crisis:Show current user:whoami:command:LOCKED
+Gatekeeper:Change file permissions:chmod:command:LOCKED
+Puppeteer:Change file ownership:chown:command:LOCKED
+Process Watcher:View active processes:ps:command:LOCKED
+Terminator:Kill a process:kill:command:LOCKED
+Taskmaster:Monitor system tasks:top:command:LOCKED
+Echo Seeker:Check network connection:ping:command:LOCKED
+Data Hunter:Download a file from the web:wget:command:LOCKED
+Web Whisperer:Fetch data from a URL:curl:command:LOCKED
+Reader:Display a file’s contents:cat:command:LOCKED
+Scribe:Edit a file with nano:nano:command:LOCKED
+Wizard:Edit a file with Vim:vim:command:LOCKED
+Scholar:Read the manual:man:command:LOCKED
+Performance Guru:Run btop:btop:command:LOCKED
+Resource Watcher:Run htop:htop:command:LOCKED
+Process Spy:Run pidof:pidof:command:LOCKED
+System Analyst:Run vmstat:vmstat:command:LOCKED
+Kernel Inspector:Run dmesg:dmesg:command:LOCKED
+Log Seeker:Run journalctl:journalctl:command:LOCKED
+Matrix Coder:Run cmatrix:cmatrix:command:LOCKED
+Digital Botanist:Run bonsai:bonsai:command:LOCKED
+ASCII Artist:Run toilet or figlet:toilet:command:LOCKED
+Color Wizard:Run lolcat:lolcat:command:LOCKED
+Hacker Mode:Run sl (Steam Locomotive):sl:command:LOCKED
+Curiosity:Check Gamifier Stats:checkstats:command:LOCKED
+Patience:Check Gamifier Level:checkrank:command:LOCKED
+You'll Never Walk Alone:Check Gamifier Infopage:ghelp:command:LOCKED
+EOF
+fi
 # Function to get the current EXP
 get_exp() {
     grep "EXP=" "$exp_file" | cut -d'=' -f2
@@ -117,6 +192,40 @@ level_up() {
         lvl=$new_lvl
     done
     set_exp "$exp"
+}
+
+check_achievements() {
+    local total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
+    local unique_commands=$(wc -l < "$used_commands_file")
+    local last_command=$(tail -n 1 "$HOME/.bash_history")
+    local first_word=$(echo "$last_command" | awk '{print $1}')
+
+    while IFS= read -r line; do
+        # Extract fields using cut instead of relying on IFS
+        local name=$(echo "$line" | cut -d':' -f1)
+        local description=$(echo "$line" | cut -d':' -f2)
+        local requirement=$(echo "$line" | cut -d':' -f3)
+        local type=$(echo "$line" | cut -d':' -f4)
+        local status=$(echo "$line" | cut -d':' -f5)
+
+        if [ "$status" = "LOCKED" ]; then
+            local current_count=0
+            if [ "$type" = "unique" ]; then
+                current_count="$unique_commands"
+            elif [ "$type" = "total" ]; then
+                current_count="$total_commands"
+            fi
+            if [ "$type" = "command" ]; then
+                if [[ "$first_word" == $requirement ]]; then
+                    echo "Achievement Unlocked: $name - $description!"
+                    sed -i "s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/" "$achievements_file"
+                fi
+            elif [ "$current_count" -ge "$requirement" ]; then
+                echo "Achievement Unlocked: $name - $description!"
+                sed -i "s/^$name:$description:$requirement:$type:LOCKED/$name:$description:$requirement:$type:UNLOCKED/" "$achievements_file"
+            fi
+        fi
+    done < "$achievements_file"
 }
 
 # Get initial history count
@@ -167,6 +276,8 @@ handle_command() {
             echo "Current EXP: $new_exp"
         fi
     fi
+    # Check for achievements
+    check_achievements
 }
 
 # Hook into the shell prompt
@@ -317,8 +428,19 @@ checkstats() {
     local total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
     local most_used_command=$(awk -F ':::' '{if($2 > max){max=$2; cmd=$1}} END {print cmd " (" max " times)"}' "$used_commands_file")
 
+    local unlocked_count=$(grep -c ":UNLOCKED" "$achievements_file")
+    local locked_count=$(grep -c ":LOCKED" "$achievements_file")
+    local total_count=$(wc -l < "$achievements_file")
+
     echo "Total Commands Used: $total_commands"
     echo "Most Used Command: ${most_used_command:-None yet}"
+    echo ""
+    echo "Achievments ($unlocked_count/$total_count)"
+    echo "Achievements Unlocked ($unlocked_count):"
+    grep ":UNLOCKED" "$achievements_file" | awk -F ':' '{print "✔ " $1 " - " $2}'
+    echo
+	echo "Locked Achievements ($locked_count):"
+    grep ":LOCKED" "$achievements_file" | awk -F ':' '{print "✖ " $1 " - " $2}'
 }
 
 # Displays help information
@@ -326,7 +448,7 @@ ghelp() {
     cat <<EOF
 
 # =============================
-# Linux Terminal Gamifier v1.1
+# Linux Terminal Gamifier v1.2
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
