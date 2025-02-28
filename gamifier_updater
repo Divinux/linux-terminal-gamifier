@@ -38,7 +38,6 @@ mv "$EXP_FILE" "$TARGET_DIR/"
 
 curl --output "$HOME/gamifier" "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
 
-source $HOME/gamifier
 echo "Files edited, moved, and updated successfully."
 echo "Please restart your terminal."
 
