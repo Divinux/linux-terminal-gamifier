@@ -36,10 +36,12 @@ mkdir -p "$TARGET_DIR"
 mv "$USED_COMMANDS_FILE" "$TARGET_DIR/"
 mv "$EXP_FILE" "$TARGET_DIR/"
 
+curl --output "$HOME/gamifier" "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
+
+source $HOME/gamifier
+echo "Files edited, moved, and updated successfully."
+echo "Please restart your terminal."
+
 # Restore normal output
 exec 1>&3 2>&4
 exec 3>&- 4>&-
-
-curl --output "$HOME/gamifier" "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
-echo "Files edited, moved, and updated successfully."
-echo "Please restart your terminal."
