@@ -57,7 +57,7 @@ msg_false_new_command="Incorrect command! At least you tried!"
 msg_false_repeat_command="Trying incorrect command again..."
 
 # EXP settings
-exp_new_command=5
+exp_new_command=3
 exp_reused_command=2
 exp_false_new_command=1
 exp_false_reused_command=0
@@ -96,19 +96,19 @@ Force Push:Use 200 unique commands:200:unique:LOCKED
 Fork Bomb:Use 250 unique commands:250:unique:LOCKED
 Detached HEAD:Use 350 unique commands:350:unique:LOCKED
 Kernel Panic:Use 500 unique commands:500:unique:LOCKED
-First Steps:Use 10 total commands:10:total:LOCKED
-Tentative Exploration:Use 20 total commands:20:total:LOCKED
-Getting Comfortable:Use 30 total commands:30:total:LOCKED
-Confidence Rising:Use 40 total commands:40:total:LOCKED
-Settling In:Use 50 total commands:50:total:LOCKED
-Building Momentum:Use 100 total commands:100:total:LOCKED
-Familiar Ground:Use 250 total commands:250:total:LOCKED
-Flow State Achieved:Use 500 total commands:500:total:LOCKED
-In the Zone:Use 750 total commands:750:total:LOCKED
-Unshakable Rhythm:Use 1000 total commands:1000:total:LOCKED
-Second Nature:Use 2500 total commands:2500:total:LOCKED
-Beyond Muscle Memory:Use 5000 total commands:5000:total:LOCKED
-Terminal Nirvana:Use 10000 total commands:10000:total:LOCKED
+First Steps:Use 10 commands total:10:total:LOCKED
+Tentative Exploration:Use 20 commands total:20:total:LOCKED
+Getting Comfortable:Use 30 commands total:30:total:LOCKED
+Confidence Rising:Use 40 commands total:40:total:LOCKED
+Settling In:Use 50 commands total:50:total:LOCKED
+Building Momentum:Use 100 commands total:100:total:LOCKED
+Familiar Ground:Use 250 commands total:250:total:LOCKED
+Flow State Achieved:Use 500 commands total:500:total:LOCKED
+In the Zone:Use 750 commands total:750:total:LOCKED
+Unshakable Rhythm:Use 1000 commands total:1000:total:LOCKED
+Second Nature:Use 2500 commands total:2500:total:LOCKED
+Beyond Muscle Memory:Use 5000 commands total:5000:total:LOCKED
+Terminal Nirvana:Use 10000 commands total:10000:total:LOCKED
 Superuser:Run a command with sudo:sudo:command:LOCKED
 Explorer:List files in a directory:ls:command:LOCKED
 Nomad:Change directories:cd:command:LOCKED
@@ -144,7 +144,7 @@ Kernel Inspector:Run dmesg:dmesg:command:LOCKED
 Log Seeker:Run journalctl:journalctl:command:LOCKED
 Matrix Coder:Run cmatrix:cmatrix:command:LOCKED
 Digital Botanist:Run bonsai:bonsai:command:LOCKED
-ASCII Artist:Run toilet or figlet:toilet:command:LOCKED
+ASCII Artist:Run figlet:figlet:command:LOCKED
 Color Wizard:Run lolcat:lolcat:command:LOCKED
 Hacker Mode:Run sl (Steam Locomotive):sl:command:LOCKED
 Curiosity:Check Gamifier Stats:checkstats:command:LOCKED
@@ -281,7 +281,7 @@ handle_command() {
         echo "$message"
 		# If any EXP was gained, echo the new EXP to the console
         if [ "$exp_increment" -gt 0 ]; then
-            echo "Current EXP: $new_exp"
+            echo "Current EXP: $new_exp/$(exp_needed_for_level)"
         fi
     fi
     # Check for achievements
@@ -443,8 +443,8 @@ checkstats() {
     echo "Total Commands Used: $total_commands"
     echo "Most Used Command: ${most_used_command:-None yet}"
     echo ""
-    echo "Achievments ($unlocked_count/$total_count)"
-    echo "Achievements Unlocked ($unlocked_count):"
+    #echo "Achievments ($unlocked_count/$total_count)"
+    echo "Achievements Unlocked ($unlocked_count/$total_count):"
     grep ":UNLOCKED" "$achievements_file" | awk -F ':' '{print "✔ " $1 " - " $2}'
     #echo
 	#echo "Locked Achievements ($locked_count):"
