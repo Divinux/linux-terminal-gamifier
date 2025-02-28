@@ -6,7 +6,7 @@ This script gamifies your terminal by tracking experience points and levels base
 
 1. Save this file in your home directory (or anywhere else):
    ```bash
-   curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/gamifier/refs/heads/main/gamifier"
+   curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
    ```
 2. Source the file in your `.bashrc`. This can be done manually or (assuming you saved it in your home directory) by running:
    ```bash
