@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================
-# Linux Terminal Gamifier v1.2
+# Linux Terminal Gamifier v1.3
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -40,6 +40,7 @@
 SAVE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gamifier"
 mkdir -p "$SAVE_DIR"
 
+# Create save files
 exp_file="$SAVE_DIR/.exp"
 used_commands_file="$SAVE_DIR/.usedcommands"
 achievements_file="$SAVE_DIR/.achievements"
@@ -77,6 +78,7 @@ fi
 if [ ! -f "$used_commands_file" ]; then
     touch "$used_commands_file"
 fi
+
 # Initialize achievements file if it doesn't exist
 if [ ! -f "$achievements_file" ]; then
     cat <<EOF > "$achievements_file"
@@ -84,9 +86,9 @@ Bootstrapped:Use 5 unique commands:5:unique:LOCKED
 Init Process:Use 10 unique commands:10:unique:LOCKED
 System Call:Use 15 unique commands:15:unique:LOCKED
 Interrupt Handler:Use 20 unique commands:20:unique:LOCKED
-Pull Request:Use 25 unique commands:25:unique:LOCKED
+Overclocked:Use 25 unique commands:25:unique:LOCKED
 Firmware Flash:Use 30 unique commands:30:unique:LOCKED
-Overclocked:Use 40 unique commands:40:unique:LOCKED
+Pull Request:Use 40 unique commands:40:unique:LOCKED
 Memory Leak:Use 50 unique commands:50:unique:LOCKED
 Merge Conflict:Use 75 unique commands:75:unique:LOCKED
 Infinite Rebase:Use 100 unique commands:100:unique:LOCKED
@@ -152,6 +154,7 @@ Patience:Check Gamifier Level:checkrank:command:LOCKED
 You'll Never Walk Alone:Check Gamifier Infopage:ghelp:command:LOCKED
 EOF
 fi
+
 # Function to get the current EXP
 get_exp() {
     grep "EXP=" "$exp_file" | cut -d'=' -f2
@@ -195,6 +198,7 @@ level_up() {
     set_exp "$exp"
 }
 
+# Function to unlock achievements
 check_achievements() {
     local total_commands=$(awk -F'=' '/TOTAL_COMMANDS=/ {print $2}' "$exp_file")
     local unique_commands=$(wc -l < "$used_commands_file")
@@ -246,15 +250,24 @@ hist_size=${HISTSIZE:-500}
 # Function to update or add command usage
 update_command_usage() {
     local command="$1"
-    if grep -q "^$command:::" "$used_commands_file"; then
-        local current_count=$(awk -F ':::' -v cmd="$command" '$1 == cmd {print $2}' "$used_commands_file")
-        local new_count=$((current_count + 1))
-        sed -i "s|^$command:::$current_count|$command:::$new_count|" "$used_commands_file"
-    else
-        echo "$command:::1" >> "$used_commands_file"
-    fi
-}
+	# Temporary file for safe updates
+    local tempfile=$(mktemp)
+    local updated=false
 
+    awk -F ':::' -v cmd="$command" '
+    {
+        if ($1 == cmd) {
+            $2 += 1
+            updated = 1
+        }
+        print $1 ":::" $2
+    } END {
+        if (!updated) print cmd ":::1"
+    }' "$used_commands_file" > "$tempfile"
+	
+	# Replace old file with the updated one
+    mv "$tempfile" "$used_commands_file"  
+}
 
 # Helper function to handle command use
 handle_command() {
@@ -332,6 +345,7 @@ update_exp() {
         level_up
     fi
 }
+
 
 # Checks the current level
 checkrank() {
@@ -435,20 +449,17 @@ get_quote() {
 checkstats() {
     local total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
     local most_used_command=$(awk -F ':::' '{if($2 > max){max=$2; cmd=$1}} END {print cmd " (" max " times)"}' "$used_commands_file")
+    local unique_commands=$(wc -l < "$used_commands_file")
 
     local unlocked_count=$(grep -c ":UNLOCKED" "$achievements_file")
-    local locked_count=$(grep -c ":LOCKED" "$achievements_file")
     local total_count=$(wc -l < "$achievements_file")
 
+    echo "Unique Commands Used: $unique_commands"
     echo "Total Commands Used: $total_commands"
     echo "Most Used Command: ${most_used_command:-None yet}"
     echo ""
-    #echo "Achievments ($unlocked_count/$total_count)"
     echo "Achievements Unlocked ($unlocked_count/$total_count):"
     grep ":UNLOCKED" "$achievements_file" | awk -F ':' '{print "✔ " $1 " - " $2}'
-    #echo
-	#echo "Locked Achievements ($locked_count):"
-    #grep ":LOCKED" "$achievements_file" | awk -F ':' '{print "✖ " $1 " - " $2}'
 }
 
 # Displays help information
@@ -456,7 +467,7 @@ ghelp() {
     cat <<EOF
 
 # =============================
-# Linux Terminal Gamifier v1.2
+# Linux Terminal Gamifier v1.3
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
