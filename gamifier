@@ -35,6 +35,9 @@
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc
 # 2. Delete the gamifier file, and the ~/.local/share/gamifier directory
 # 3. Restart your terminal
+#
+# Copyright (c) 2025 Divinux
+# Licensed under the MIT License - see the LICENSE file for details.
 
 # Define save directory
 SAVE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/gamifier"
