@@ -36,7 +36,7 @@ This script gamifies your terminal by tracking experience points and levels base
 - Use `checkrank` at any time to check your current progress.
 - Use `checkstats` to display usage stats.
 - Use `ghelp` to display a short info message.
-- Found to work well with [bashcrawl](https://gitlab.com/slackermedia/bashcrawl), a terminal based learning game.
+- Found to work well with [bashcrawl](https://gitlab.com/slackermedia/bashcrawl), a terminal commands learning adventure game.
 
 ## Uninstall
 
