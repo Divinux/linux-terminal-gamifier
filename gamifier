@@ -68,7 +68,7 @@ exp_false_reused_command=0
 
 # EXP curve
 exp_increase_percent=6
-exp_base=10
+exp_base=30
 
 # Initialize .exp file if it doesn't exist
 if [ ! -f "$exp_file" ]; then
