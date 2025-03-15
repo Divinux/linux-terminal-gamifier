@@ -1,22 +1,33 @@
 #!/bin/bash
 
 # =============================
-# Linux Terminal Gamifier v1.4
+# Linux Terminal Gamifier v1.5
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
 # repeated commands less, wrong commands still give a little. At least you tried.
 #
-# Setup:
-# 1. Save this file in your home directory (or anywhere else)
+# Setup for bash:
+# 1. Save this file in your home directory
 #        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
-# 2. Source the file in your bashrc. This can be done manually or (assuming you saved it in your home dir) by running
+# 2. Source the file in your bashrc. This can be done manually or by running
 #        echo 'source ~/gamifier' >> ~/.bashrc
 # 3. Ensure your history is reloaded after each command, then call update_exp
 #    If you have not yet modified your PROMPT_COMMAND, you can simply run
 #        echo 'export PROMPT_COMMAND="history -a; history -n; update_exp; $PROMPT_COMMAND"' >> ~/.bashrc
 # 4. Restart your terminal or run
 #        source ~/.bashrc
+#
+# Setup for zsh:
+# 1. Save this file in your home directory
+#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+# 2. Source the file in your zshrc. This can be done manually or by running
+#        echo 'source ~/gamifier' >> ~/.zshrc
+# 3. Ensure your history is reloaded after each command, then call update_exp
+#    If you have not yet modified your precmd hook, you can simply run
+#        echo -e "setopt incappendhistory\nprecmd() { update_exp; }" >> ~/.zshrc
+# 4. Restart your terminal or run
+#        source ~/.zshrc
 #
 # Additional info:
 # 1. This script creates a directory under $XDG_DATA_HOME (defaults to ~/.local/share/ and uses it as a
@@ -30,10 +41,11 @@
 # 3. You can use checkrank at any time to check your current progress.
 # 4. Use checkstats to display usage stats.
 # 5. Use ghelp to display a short info message.
-# 6. Use gupdate to check for updates.
+# 6. Use gupdate to update Linux Terminal Gamifier.
 #
 # Uninstall:
-# 1. Remove 'source ~/gamifier' and update_exp; from your bashrc
+# 1. Remove 'source ~/gamifier' and update_exp; from your bashrc, or if using zsh
+#    remove 'source ~/gamifier', 'setopt incappendhistory' and precmd() { update_exp; } from your .zshrc
 # 2. Delete the gamifier file, and the ~/.local/share/gamifier directory
 # 3. Restart your terminal
 #
@@ -82,6 +94,36 @@ fi
 if [ ! -f "$used_commands_file" ]; then
     touch "$used_commands_file"
 fi
+
+# Detect shell
+SHELL_NAME=$(ps -p $$ -o comm=)
+
+# Determine history file location
+case "$SHELL_NAME" in
+    bash)
+		# if the variable HISTFILE is set, use it, otherwise default to .bash_history
+		if [[ -n "$HISTFILE" ]]; then
+            histfile="$HISTFILE"
+        else
+			histfile="$HOME/.bash_history"
+		fi
+        ;;
+    zsh)
+		# if the variable HISTFILE is set, use it, otherwise check for the most current default and use that
+        if [[ -n "$HISTFILE" ]]; then
+            histfile="$HISTFILE"
+        else
+            zsh_history_files=("$HOME/.histfile" "$HOME/.zsh_history")
+            latest=$(ls -t "${ZSH_HISTORY_FILES[@]}" 2>/dev/null | head -n 1)
+            histfile="${latest:-$HOME/.histfile}"
+        fi
+        ;;
+esac
+
+prev_hist_count=$(wc -l < "$histfile")
+
+# Get HISTSIZE limit
+hist_size=${HISTSIZE:-500}
 
 # Initialize achievements file if it doesn't exist
 if [ ! -f "$achievements_file" ]; then
@@ -206,12 +248,11 @@ level_up() {
 check_achievements() {
     local total_commands=$(awk -F'=' '/TOTAL_COMMANDS=/ {print $2}' "$exp_file")
     local unique_commands=$(wc -l < "$used_commands_file")
-    local last_command=$(tail -n 1 "$HOME/.bash_history")
-    local first_word=${last_command%% *}
+    local last_command=$1
 
     local updates=()
-    while IFS=: read -r name description requirement type status; do
-        if [ "$status" = "LOCKED" ]; then
+    while IFS=: read -r name description requirement type astatus; do
+        if [ "$astatus" = "LOCKED" ]; then
             local unlock=false
 
             case "$type" in
@@ -244,18 +285,10 @@ check_achievements() {
     done
 }
 
-# Get initial history count
-histfile="$HOME/.bash_history"
-prev_hist_count=$(wc -l < "$histfile")
-
-# Get HISTSIZE limit
-hist_size=${HISTSIZE:-500}
-
 # Function to update or add command usage
 update_command_usage() {
-    local command="$1"
-
-   # Use a subshell to avoid polluting the environment
+command="$(getlastcommand)"
+# Use a subshell to avoid polluting the environment
     (
         export CMD="$command"
         awk -F ':::' '
@@ -270,8 +303,6 @@ update_command_usage() {
             }
         ' $used_commands_file > tmp && mv tmp $used_commands_file
     )
-
-
 }
 
 # Helper function to handle command use
@@ -303,7 +334,7 @@ handle_command() {
         fi
     fi
     # Check for achievements
-    #check_achievements
+    check_achievements "$command"
 }
 
 # Hook into the shell prompt
@@ -321,16 +352,17 @@ update_exp() {
         prev_hist_count="$new_count"
 
         # Get the last command entered
-        local last_command=$(tail -n 1 "$histfile")
+        local last_command=$(getlastcommand)
         local first_word=$(echo "$last_command" | awk '{print $1}')
 
-        # If command starts with sudo, extract the actual command being run
-        if [[ "$first_word" == "sudo" ]]; then
+        # If command starts with sudo or doas, extract the actual command being run
+        if [[ "$first_word" == "sudo" || "$first_word" == "doas" ]]; then
             first_word=$(echo "$last_command" | awk '{print $2}')
         fi
+        echo $first_word
 
         # Check if the command is valid (not "command not found")
-        if command -v "$first_word" &> /dev/null; then
+        if (command -v "$first_word" >/dev/null 2>&1) || (type "$first_word" >/dev/null 2>&1); then
             # If valid, handle it with exp_new_command for first-time use, exp_reused_command for subsequent use
             if ! grep -Fq "$last_command:::" "$used_commands_file"; then
                 handle_command "$last_command" "$exp_new_command" "$msg_new_command" "$notify_on_new"
@@ -351,7 +383,25 @@ update_exp() {
     fi
 }
 
-
+getlastcommand(){
+local c
+case "$SHELL_NAME" in
+    bash)
+		local command="$1"
+		read -r c <<< "$(tail -n 1 $histfile)"
+		printf '%s\n' "$c"
+        ;;
+    zsh)
+        read -r c <<< "$(tail -n 1 $histfile | sed 's/\\n/\\\\n/g')"
+        # Check for Zsh extended format
+        if [[ "$c" == :* ]]; then
+            # Strip the extended format: : timestamp:sequence;command
+            c=$(echo "$c" | sed -e 's/^: [0-9]\+:[0-9]\+;//' -e 's/^[ \t]*//')
+        fi
+        printf '%s\n' "$c"
+        ;;
+esac
+}
 # Checks the current level
 checkrank() {
     local level=$(get_lvl)
@@ -472,7 +522,7 @@ ghelp() {
     cat <<EOF
 
 # =============================
-# Linux Terminal Gamifier v1.4
+# Linux Terminal Gamifier v1.5
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -481,7 +531,7 @@ ghelp() {
 # You can use checkrank at any time to check your current progress.
 # Use checkstats to display usage stats.
 # Use ghelp to display a short info message.
-# Use gupdate to check for updates.
+# Use gupdate to update Linux Terminal Gamifier.
 
 EOF
 }
@@ -503,8 +553,8 @@ gupdate()
 
     if [[ "$current_version" != "$remote_version" ]]; then
         echo "New version available: v$remote_version (current: v$current_version). Updating..."
-        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
-        source ~/gamifier
+        curl --output $HOME/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+        source $HOME/gamifier
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
