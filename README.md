@@ -60,8 +60,8 @@ This script gamifies your terminal by tracking experience points and levels base
 
 ## Uninstall
 
-1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or
-   Remove `source ~/gamifier`, `setopt incappendhistory` and `precmd() { update_exp; }` from your `.zshrc` for zsh.
+1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or  
+   Remove `source ~/gamifier`, `setopt incappendhistory`, and `precmd() { update_exp; }` from your `.zshrc` for zsh.
 2. Delete the `gamifier` file to remove the script.
 3. Delete the `~/.local/share/gamifier` directory to remove your savefiles.
 4. Restart your terminal.
