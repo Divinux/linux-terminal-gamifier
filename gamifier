@@ -164,7 +164,7 @@ Pathfinder:Display the current directory:pwd:command:LOCKED
 Creator:Create a new file:touch:command:LOCKED
 Architect:Create a new directory:mkdir:command:LOCKED
 Destroyer:Delete a file:rm:command:LOCKED
-Cleaner:Remove an empty directory:rmdir:command:LOCKED
+Cleaner:Remove a directory:rmdir:command:LOCKED
 Duplicator:Copy a file:cp:command:LOCKED
 Transporter:Move or rename a file:mv:command:LOCKED
 System Seer:View system information:uname:command:LOCKED
