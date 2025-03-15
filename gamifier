@@ -541,7 +541,7 @@ gupdate()
  local current_version remote_version
 
     # Extract the current version from this script
-    current_version=$(grep -oP '(?<=# Linux Terminal Gamifier v)\d+\.\d+' ~/gamifier | head -n 1)
+    current_version=$(grep -oP '(?<=# Linux Terminal Gamifier v)\d+\.\d+' $HOME/gamifier | head -n 1)
 
     # Fetch the latest version from GitHub
     remote_version=$(curl -s "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/main/gamifier" | grep -oP '(?<=# Linux Terminal Gamifier v)\d+\.\d+' | head -n 1)
