@@ -359,7 +359,6 @@ update_exp() {
         if [[ "$first_word" == "sudo" || "$first_word" == "doas" ]]; then
             first_word=$(echo "$last_command" | awk '{print $2}')
         fi
-        echo $first_word
 
         # Check if the command is valid (not "command not found")
         if (command -v "$first_word" >/dev/null 2>&1) || (type "$first_word" >/dev/null 2>&1); then
