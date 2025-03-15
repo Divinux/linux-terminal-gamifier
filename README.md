@@ -1,11 +1,11 @@
 # Linux Terminal Gamifier
 
-![Description of the image](img/screenshot.png)
+![Description of the image](img/screenshot1.png)
 
 
-This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 70 achievements.
+This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 70 achievements. Supports bash and zsh shells.
 
-## Setup
+## Setup for bash
 
 1. Save this file in your home directory:
    ```bash
@@ -22,6 +22,25 @@ This script gamifies your terminal by tracking experience points and levels base
 4. Restart your terminal or run:
    ```bash
    source ~/.bashrc
+   ```
+
+## Setup for zsh
+
+1. Save this file in your home directory:
+   ```bash
+   curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+   ```
+2. Source the file in your `.zshrc`. This can be done manually or by running:
+   ```bash
+   echo 'source ~/gamifier' >> ~/.zshrc
+   ```
+3. Ensure your history is reloaded after each command, then call `update_exp`. If you have not yet modified your `precmd` hook, you can simply run:
+   ```bash
+   echo -e "setopt incappendhistory\nprecmd() { update_exp; }" >> ~/.zshrc
+   ```
+4. Restart your terminal or run:
+   ```bash
+   source ~/.zshrc
    ```
 
 ## Additional Information
@@ -41,8 +60,10 @@ This script gamifies your terminal by tracking experience points and levels base
 
 ## Uninstall
 
-1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc`.
-2. Delete the `gamifier` file and the `~/.local/share/gamifier` directory.
-3. Restart your terminal.
+1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or
+   Remove `source ~/gamifier`, `setopt incappendhistory` and `precmd() { update_exp; }` from your `.zshrc` for zsh.
+2. Delete the `gamifier` file to remove the script.
+3. Delete the `~/.local/share/gamifier` directory to remove your savefiles.
+4. Restart your terminal.
 
 
