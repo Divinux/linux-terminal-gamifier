@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================
-# Linux Terminal Gamifier v1.3
+# Linux Terminal Gamifier v1.4
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -30,6 +30,7 @@
 # 3. You can use checkrank at any time to check your current progress.
 # 4. Use checkstats to display usage stats.
 # 5. Use ghelp to display a short info message.
+# 6. Use gupdate to check for updates.
 #
 # Uninstall:
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc
@@ -470,7 +471,7 @@ ghelp() {
     cat <<EOF
 
 # =============================
-# Linux Terminal Gamifier v1.3
+# Linux Terminal Gamifier v1.4
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -479,7 +480,32 @@ ghelp() {
 # You can use checkrank at any time to check your current progress.
 # Use checkstats to display usage stats.
 # Use ghelp to display a short info message.
+# Use gupdate to check for updates.
 
 EOF
 }
 
+# Updates the gamifier script
+gupdate()
+{
+ local current_version remote_version
+
+    # Extract the current version from this script
+    current_version=$(grep -oP '(?<=# Linux Terminal Gamifier v)\d+\.\d+' ~/gamifier | head -n 1)
+
+    # Fetch the latest version from GitHub
+    remote_version=$(curl -s "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/main/gamifier" | grep -oP '(?<=# Linux Terminal Gamifier v)\d+\.\d+' | head -n 1)
+    if [[ -z "$remote_version" ]]; then
+        echo "Failed to fetch remote version."
+        return 1
+    fi
+
+    if [[ "$current_version" != "$remote_version" ]]; then
+        echo "New version available: v$remote_version (current: v$current_version). Updating..."
+        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+        source ~/gamifier
+        echo "Update complete!"
+    else
+        echo "Linux Terminal Gamifier is up to date. (v$current_version)."
+    fi
+}
