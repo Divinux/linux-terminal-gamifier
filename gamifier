@@ -118,6 +118,15 @@ case "$SHELL_NAME" in
             histfile="${latest:-$HOME/.histfile}"
         fi
         ;;
+	*)
+		# if the variable HISTFILE is set, use it, otherwise just error output
+		# this happens when ps fails
+		if [[ -n "$HISTFILE" ]]; then
+            histfile="$HISTFILE"
+        else
+			echo "History file could not be found. Please set the $HISTFILE variable."
+		fi
+        ;;
 esac
 
 prev_hist_count=$(wc -l < "$histfile")
