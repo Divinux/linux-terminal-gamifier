@@ -394,11 +394,6 @@ update_exp() {
 getlastcommand(){
 local c
 case "$SHELL_NAME" in
-    bash)
-		local command="$1"
-		read -r c <<< "$(tail -n 1 $histfile)"
-		printf '%s\n' "$c"
-        ;;
     zsh)
         read -r c <<< "$(tail -n 1 $histfile | sed 's/\\n/\\\\n/g')"
         # Check for Zsh extended format
@@ -407,6 +402,11 @@ case "$SHELL_NAME" in
             c=$(echo "$c" | sed -e 's/^: [0-9]\+:[0-9]\+;//' -e 's/^[ \t]*//')
         fi
         printf '%s\n' "$c"
+        ;;
+    *)
+		local command="$1"
+		read -r c <<< "$(tail -n 1 $histfile)"
+		printf '%s\n' "$c"
         ;;
 esac
 }
