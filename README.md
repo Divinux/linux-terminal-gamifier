@@ -57,6 +57,8 @@ This script gamifies your terminal by tracking experience points and levels base
 - Use `ghelp` to display a short info message.
 - Use `gupdate` to update Linux Terminal Gamifier.
 - Found to work well with [bashcrawl](https://gitlab.com/slackermedia/bashcrawl), a terminal commands learning adventure game.
+- Once the "New command discovered!" messges lose their novelty, they can be disabled by setting the notify_on_new variable in line 65 to false.
+- Security consideration: The script pulls straight from your history file and saves to the .usedcommands file, so it will not contain anything that your history does not already contain anyways, just be aware that there is now a copy of your history saved somewhere else.
 
 ## Uninstall
 
