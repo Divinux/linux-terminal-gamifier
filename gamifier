@@ -215,6 +215,14 @@ Hacker Mode:Run sl (Steam Locomotive):sl:command:LOCKED
 Curiosity:Check Gamifier Stats:checkstats:command:LOCKED
 Patience:Check Gamifier Level:checkrank:command:LOCKED
 You'll Never Walk Alone:Check Gamifier Infopage:ghelp:command:LOCKED
+Come back soon!:2 day streak:2:streak:LOCKED
+Repeat Offender:3 day streak:3:streak:LOCKED
+Business Week:5 day streak:5:streak:LOCKED
+24/7:Use the terminal daily for a week:7:streak:LOCKED
+It's Been Two Weeks:Use the terminal daily for two weeks:14:streak:LOCKED
+Can't Stop Won't Stop:Use the terminal daily for a month:30:streak:LOCKED
+Seasonal Employee:Use the terminal daily for three months:60:streak:LOCKED
+Ok This Isn't Healthy:Use the terminal daily for an entire year:356:streak:LOCKED
 EOF
 fi
 
@@ -266,6 +274,7 @@ check_achievements() {
     local total_commands=$(awk -F'=' '/TOTAL_COMMANDS=/ {print $2}' "$exp_file")
     local unique_commands=$(wc -l < "$used_commands_file")
     local last_command=$1
+    local streak=$(grep "streak=" "$streak_file" | cut -d'=' -f2)
 
     local updates=()
     while IFS=: read -r name description requirement type astatus; do
@@ -281,6 +290,9 @@ check_achievements() {
                     ;;
                 command)
                     [ "$first_word" = "$requirement" ] && unlock=true
+                    ;;
+                streak)
+                    [ "$streak" -ge "$requirement" ] && unlock=true
                     ;;
             esac
 
@@ -557,10 +569,10 @@ checkstats() {
     local total_count=$(wc -l < "$achievements_file")
     local streak=$(grep "streak=" "$streak_file" | cut -d'=' -f2)
 
+    echo "Current Streak: $streak days"
     echo "Unique Commands Used: $unique_commands"
     echo "Total Commands Used: $total_commands"
     echo "Most Used Command: ${most_used_command:-None yet}"
-    echo "Current streak: $streak days"
     echo ""
     echo "Achievements Unlocked ($unlocked_count/$total_count):"
     grep ":UNLOCKED" "$achievements_file" | awk -F ':' '{print "✔ " $1 " - " $2}'
@@ -608,4 +620,24 @@ gupdate()
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
     fi
+    updateachievemntlist
+}
+
+updateachievemntlist()
+{
+echo "comparing lists"
+local new_achievements existing_achievements
+# Extract achievements from the new local script
+        new_achievements=$(grep -oP '^\S.*:.*:.*:LOCKED$' "$HOME/gamifier")
+
+        # Load existing achievements (including unlocked ones)
+        existing_achievements=$(cat "$achievements_file")
+
+        # Loop through new achievements and check if they already exist based on their name
+        while IFS= read -r new_achievement; do
+            new_achievement_name=$(echo "$new_achievement" | cut -d: -f1)  # Get the achievement name before the first colon
+            if ! echo "$existing_achievements" | grep -q "^$new_achievement_name:"; then
+                echo "$new_achievement" >> "$achievements_file"
+            fi
+        done <<< "$new_achievements"
 }
