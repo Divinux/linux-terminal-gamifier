@@ -150,6 +150,84 @@ else
     IS_WINDOWS=false
 fi
 
+# Cross-platform helper functions
+
+# Cross-platform replacement for sed -i
+crossplatform_sed_inplace() {
+    local pattern="$1"
+    local file="$2"
+    
+    if [ "$IS_POWERSHELL" = true ]; then
+        # PowerShell implementation
+        powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { `$_ -replace '$pattern' } | Set-Content -Path '$file'"
+    elif [ "$(uname)" = "Darwin" ]; then
+        # macOS requires empty extension for -i
+        sed -i '' "$pattern" "$file"
+    else
+        # Linux and other systems
+        sed -i "$pattern" "$file"
+    fi
+}
+
+# Path normalization for Windows compatibility
+normalize_path() {
+    local path="$1"
+    
+    if [ "$IS_WINDOWS" = true ]; then
+        # Replace / with \ for Windows
+        echo "$path" | sed 's|/|\\|g'
+    else
+        # Keep as is for Unix
+        echo "$path"
+    fi
+}
+
+# Function to calculate date difference that works cross-platform
+calculate_date_diff() {
+    local date1="$1"  # format: YYYY-MM-DD
+    local date2="$2"  # format: YYYY-MM-DD
+    
+    if [ "$IS_POWERSHELL" = true ] || [ "$IS_WINDOWS" = true ]; then
+        # PowerShell/Windows approach
+        powershell -NoProfile -Command "
+            \$date1 = [datetime]::ParseExact('$date1', 'yyyy-MM-dd', \$null)
+            \$date2 = [datetime]::ParseExact('$date2', 'yyyy-MM-dd', \$null)
+            \$diff = \$date2 - \$date1
+            Write-Output \$diff.Days
+        "
+    elif command -v gdate >/dev/null 2>&1; then
+        # Use gdate if available (macOS with GNU utilities)
+        local d1=$(gdate -d "$date1" +%s)
+        local d2=$(gdate -d "$date2" +%s)
+        echo $(( (d2 - d1) / 86400 ))
+    else
+        # Fallback for Unix systems without GNU date
+        # Convert dates to seconds since epoch without -d option
+        local IFS="-"
+        read -r y1 m1 d1 <<< "$date1"
+        read -r y2 m2 d2 <<< "$date2"
+        
+        # Use awk for date difference calculation
+        awk -v y1="$y1" -v m1="$m1" -v d1="$d1" -v y2="$y2" -v m2="$m2" -v d2="$d2" '
+        BEGIN {
+            # Convert date to Julian day number
+            # Algorithm from https://en.wikipedia.org/wiki/Julian_day
+            jdn1 = (1461 * (y1 + 4800 + (m1 - 14)/12))/4 + (367 * (m1 - 2 - 12 * ((m1 - 14)/12)))/12 - (3 * ((y1 + 4900 + (m1 - 14)/12)/100))/4 + d1 - 32075
+            jdn2 = (1461 * (y2 + 4800 + (m2 - 14)/12))/4 + (367 * (m2 - 2 - 12 * ((m2 - 14)/12)))/12 - (3 * ((y2 + 4900 + (m2 - 14)/12)/100))/4 + d2 - 32075
+            print jdn2 - jdn1
+        }'
+    fi
+}
+
+# Cross-platform date function
+crossplatform_date() {
+    if [ "$IS_WINDOWS" = true ]; then
+        powershell -Command "Get-Date -Format 'yyyy-MM-dd'"
+    else
+        date +%Y-%m-%d
+    fi
+}
+
 # Determine history file location
 case "$SHELL_NAME" in
     bash)
@@ -166,7 +244,7 @@ case "$SHELL_NAME" in
             histfile="$HISTFILE"
         else
             zsh_history_files=("$HOME/.histfile" "$HOME/.zsh_history")
-            latest=$(ls -t "${ZSH_HISTORY_FILES[@]}" 2>/dev/null | head -n 1)
+            latest=$(ls -t "${zsh_history_files[@]}" 2>/dev/null | head -n 1)
             histfile="${latest:-$HOME/.histfile}"
         fi
         ;;
@@ -343,10 +421,13 @@ level_up() {
 
 # Function to unlock achievements
 check_achievements() {
+    local last_command=$1
     local total_commands=$(awk -F'=' '/TOTAL_COMMANDS=/ {print $2}' "$exp_file")
     local unique_commands=$(wc -l < "$used_commands_file")
-    local last_command=$1
     local streak=$(grep "streak=" "$streak_file" | cut -d'=' -f2)
+    
+    # Extract the first word (command) from the last_command
+    local first_word=$(echo "$last_command" | awk '{print $1}')
 
     local updates=()
     while IFS=: read -r name description requirement type astatus; do
@@ -446,7 +527,7 @@ update_command_usage() {
     # Update total commands
     total=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
     total=$((total + 1))
-    sed -i "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total/" "$exp_file"
+    crossplatform_sed_inplace "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total/" "$exp_file"
   
     # If notification is enabled, print message
     if [ "$notify" = true ] && [ "$exp_increment" -gt 0 ]; then
@@ -529,43 +610,6 @@ getlastcommand() {
     esac
 }
 
-# Function to calculate date difference that works cross-platform
-calculate_date_diff() {
-    local date1="$1"  # format: YYYY-MM-DD
-    local date2="$2"  # format: YYYY-MM-DD
-    
-    if [ "$IS_POWERSHELL" = true ] || [ "$IS_WINDOWS" = true ]; then
-        # PowerShell/Windows approach
-        powershell -NoProfile -Command "
-            \$date1 = [datetime]::ParseExact('$date1', 'yyyy-MM-dd', \$null)
-            \$date2 = [datetime]::ParseExact('$date2', 'yyyy-MM-dd', \$null)
-            \$diff = \$date2 - \$date1
-            Write-Output \$diff.Days
-        "
-    elif command -v gdate >/dev/null 2>&1; then
-        # Use gdate if available (macOS with GNU utilities)
-        local d1=$(gdate -d "$date1" +%s)
-        local d2=$(gdate -d "$date2" +%s)
-        echo $(( (d2 - d1) / 86400 ))
-    else
-        # Fallback for Unix systems without GNU date
-        # Convert dates to seconds since epoch without -d option
-        local IFS="-"
-        read -r y1 m1 d1 <<< "$date1"
-        read -r y2 m2 d2 <<< "$date2"
-        
-        # Use awk for date difference calculation
-        awk -v y1="$y1" -v m1="$m1" -v d1="$d1" -v y2="$y2" -v m2="$m2" -v d2="$d2" '
-        BEGIN {
-            # Convert date to Julian day number
-            # Algorithm from https://en.wikipedia.org/wiki/Julian_day
-            jdn1 = (1461 * (y1 + 4800 + (m1 - 14)/12))/4 + (367 * (m1 - 2 - 12 * ((m1 - 14)/12)))/12 - (3 * ((y1 + 4900 + (m1 - 14)/12)/100))/4 + d1 - 32075
-            jdn2 = (1461 * (y2 + 4800 + (m2 - 14)/12))/4 + (367 * (m2 - 2 - 12 * ((m2 - 14)/12)))/12 - (3 * ((y2 + 4900 + (m2 - 14)/12)/100))/4 + d2 - 32075
-            print jdn2 - jdn1
-        }'
-    fi
-}
-
 # Function to update daily use streak
 update_streak() {
     local current_date=$(crossplatform_date)
@@ -585,8 +629,8 @@ update_streak() {
         fi
 
         # Update .streak file
-        sed -i "s/^last_date_used=.*/last_date_used=$current_date/" "$streak_file"
-        sed -i "s/^streak=.*/streak=$streak/" "$streak_file"
+        crossplatform_sed_inplace "s/^last_date_used=.*/last_date_used=$current_date/" "$streak_file"
+        crossplatform_sed_inplace "s/^streak=.*/streak=$streak/" "$streak_file"
     fi
 }
 
@@ -744,12 +788,14 @@ gupdate()
     if [[ "$current_version" != "$remote_version" ]]; then
         echo "New version available: v$remote_version (current: v$current_version). Updating..."
         curl --output $HOME/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
-        # Use the appropriate source command based on shell
+        
+        # Use the appropriate sourcing command based on the shell
         if [ "$IS_POWERSHELL" = true ]; then
             . $HOME/gamifier
         else
             source $HOME/gamifier
         fi
+        
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
@@ -918,14 +964,6 @@ append_file() {
     fi
 }
 
-crossplatform_date() {
-    if [ "$IS_WINDOWS" = true ]; then
-        powershell -Command "Get-Date -Format 'yyyy-MM-dd'"
-    else
-        date +%Y-%m-%d
-    fi
-}
-
 # Check PowerShell execution policy and suggest solution
 check_powershell_execution_policy() {
     if [ "$IS_POWERSHELL" = true ]; then
@@ -945,35 +983,5 @@ check_powershell_execution_policy() {
             echo ""
             echo "Note: RemoteSigned allows local scripts to run without signing, but requires downloaded scripts to be signed by a trusted publisher."
         fi
-    fi
-}
-
-# Cross-platform replacement for sed -i
-crossplatform_sed_inplace() {
-    local pattern="$1"
-    local file="$2"
-    
-    if [ "$IS_POWERSHELL" = true ]; then
-        # PowerShell implementation
-        powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { `$_ -replace '$pattern' } | Set-Content -Path '$file'"
-    elif [ "$(uname)" = "Darwin" ]; then
-        # macOS requires empty extension for -i
-        sed -i '' "$pattern" "$file"
-    else
-        # Linux and other systems
-        sed -i "$pattern" "$file"
-    fi
-}
-
-# Normalizing paths for Windows
-normalize_path() {
-    local path="$1"
-    
-    if [ "$IS_WINDOWS" = true ]; then
-        # Replace / with \ for Windows
-        echo "$path" | sed 's|/|\\|g'
-    else
-        # Keep as is for Unix
-        echo "$path"
     fi
 }
