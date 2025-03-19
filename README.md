@@ -63,7 +63,7 @@ This script gamifies your terminal by tracking experience points and levels base
 
 ## FAQ
 
-Q: The script stops working after installing OhMy*
+Q: The script stops working after installing OhMy*  
 A: OhMy* overwrites the PROMPT_COMMAND, so either make sure to install OhMy* before the Gamifier script, or add `update_exp` to your PROMPT_COMMAND manually afterwards.
 
 ## Uninstall
