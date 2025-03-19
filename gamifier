@@ -333,7 +333,7 @@ level_up() {
     while [ "$exp" -ge "$needed" ]; do
         new_lvl=$((lvl + 1))
         level_up_message "$new_lvl"
-        set_exp "$new_lvl"
+        crossplatform_sed_inplace "s/^LVL=.*/LVL=$new_lvl/" "$exp_file"
         exp=$((exp - needed))
         needed=$(exp_needed_for_level)
         lvl=$new_lvl
