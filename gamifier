@@ -29,6 +29,18 @@
 # 4. Restart your terminal or run
 #        source ~/.zshrc
 #
+# Setup for fish:
+# 1. Save this file in your home directory
+#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+# 2. Source the file in your fish config. This can be done manually or by running
+#        echo 'bass source ~/gamifier' >> ~/.config/fish/config.fish
+#    Note: This requires the bass plugin. Install it with:
+#        fisher install edc/bass
+# 3. Set up a function to run after each command is executed
+#        echo -e 'function gamifier_hook --on-event fish_postexec\n    bass "source ~/gamifier && update_exp"\nend' >> ~/.config/fish/config.fish
+# 4. Restart your terminal or run
+#        source ~/.config/fish/config.fish
+#
 # Additional info:
 # 1. This script creates a directory under $XDG_DATA_HOME (defaults to ~/.local/share/ and uses it as a
 #    fallback if $XDG_DATA_HOME is not set) with four additional files:
@@ -47,6 +59,7 @@
 # Uninstall:
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc, or if using zsh
 #    remove 'source ~/gamifier', 'setopt incappendhistory' and precmd() { update_exp; } from your .zshrc
+#    or if using fish, remove 'bass source ~/gamifier' and the gamifier_hook function from ~/.config/fish/config.fish
 # 2. Delete the gamifier file, and the ~/.local/share/gamifier directory
 # 3. Restart your terminal
 #
@@ -126,6 +139,10 @@ case "$SHELL_NAME" in
             histfile="${latest:-$HOME/.histfile}"
         fi
         ;;
+    fish)
+        # Fish history is typically in ~/.local/share/fish/fish_history
+        histfile="$HOME/.local/share/fish/fish_history"
+        ;;
 	*)
 		# if the variable HISTFILE is set, use it, otherwise just error output
 		# this happens when ps fails
@@ -197,7 +214,7 @@ Taskmaster:Monitor system tasks:top:command:LOCKED
 Echo Seeker:Check network connection:ping:command:LOCKED
 Data Hunter:Download a file from the web:wget:command:LOCKED
 Web Whisperer:Fetch data from a URL:curl:command:LOCKED
-Reader:Display a file’s contents:cat:command:LOCKED
+Reader:Display a file's contents:cat:command:LOCKED
 Scribe:Edit a file with nano:nano:command:LOCKED
 Wizard:Edit a file with Vim:vim:command:LOCKED
 Scholar:Read the manual:man:command:LOCKED
@@ -233,7 +250,7 @@ get_exp() {
 
 # Function to set EXP
 set_exp() {
-    sed -i "s/^EXP=.*/EXP=$1/" "$exp_file"
+    sed_inplace "$exp_file" "^EXP=.*" "EXP=$1"
 }
 
 # Function to get the current LVL
@@ -261,7 +278,7 @@ level_up() {
     while [ "$exp" -ge "$needed" ]; do
         new_lvl=$((lvl + 1))
         level_up_message "$new_lvl"
-        sed -i "s/^LVL=.*/LVL=$new_lvl/" "$exp_file"
+        sed_inplace "$exp_file" "^LVL=.*" "LVL=$new_lvl"
         exp=$((exp - needed))
         needed=$(exp_needed_for_level)
         lvl=$new_lvl
@@ -310,7 +327,7 @@ check_achievements() {
 
     # Apply updates one by one to avoid sed syntax errors
     for entry in "${updates[@]}"; do
-        sed -i "s/^$entry/${entry/LOCKED/UNLOCKED}/" "$achievements_file"
+        sed_inplace "$achievements_file" "^$entry" "${entry/LOCKED/UNLOCKED}"
     done
 }
 
@@ -330,7 +347,7 @@ command="$(getlastcommand)"
             END {
                 if (!found) print cmd ":::" 1
             }
-        ' $used_commands_file > tmp && mv tmp $used_commands_file
+        ' $used_commands_file > $used_commands_file.tmp && mv $used_commands_file.tmp $used_commands_file
     )
 }
 
@@ -352,7 +369,7 @@ handle_command() {
     # Update total commands count
     total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
     total_commands=$((total_commands + 1))
-    sed -i "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total_commands/" "$exp_file"
+    sed_inplace "$exp_file" "^TOTAL_COMMANDS=.*" "TOTAL_COMMANDS=$total_commands"
 
     # If notification is enabled, print message
     if [ "$notify" = true ]; then
@@ -413,6 +430,17 @@ update_exp() {
     fi
 }
 
+# Make sed -i work on both GNU and BSD/macOS
+# This is a helper function to make in-place editing work across platforms
+sed_inplace() {
+    local file="$1"
+    local pattern="$2"
+    local replacement="$3"
+    local tmp_file="$file.tmp"
+    
+    sed "s|$pattern|$replacement|" "$file" > "$tmp_file" && mv "$tmp_file" "$file"
+}
+
 # Function to update daily use streak
 update_streak() {
     local current_date=$(date +%Y-%m-%d)
@@ -421,9 +449,48 @@ update_streak() {
 
     # Check if the script is used on the next day
     if [ "$current_date" != "$last_date_used" ]; then
-        local last_date=$(date -d "$last_date_used" +%s)
-        local current_date_timestamp=$(date -d "$current_date" +%s)
-        local day_diff=$(( (current_date_timestamp - last_date) / 86400 ))
+        local day_diff=0
+        
+        # Calculate day difference in a cross-platform way
+        # Try BSD/macOS date first, then GNU date, then fall back to simple comparison
+        if date -v -1d >/dev/null 2>&1; then
+            # BSD date (macOS)
+            local last_seconds=$(date -j -f %Y-%m-%d "$last_date_used" +%s 2>/dev/null)
+            local current_seconds=$(date -j -f %Y-%m-%d "$current_date" +%s 2>/dev/null)
+            day_diff=$(( (current_seconds - last_seconds) / 86400 ))
+        elif date -d yesterday >/dev/null 2>&1; then
+            # GNU date (Linux)
+            local last_date=$(date -d "$last_date_used" +%s)
+            local current_date_timestamp=$(date -d "$current_date" +%s)
+            day_diff=$(( (current_date_timestamp - last_date) / 86400 ))
+        else
+            # Simple comparison for platforms without date arithmetic (like some fish implementations)
+            # Compare year, month, day manually
+            local last_year=$(echo "$last_date_used" | cut -d'-' -f1)
+            local last_month=$(echo "$last_date_used" | cut -d'-' -f2)
+            local last_day=$(echo "$last_date_used" | cut -d'-' -f3)
+            
+            local curr_year=$(echo "$current_date" | cut -d'-' -f1)
+            local curr_month=$(echo "$current_date" | cut -d'-' -f2)
+            local curr_day=$(echo "$current_date" | cut -d'-' -f3)
+            
+            # Very simple check for consecutive days - only works for consecutive days, not gaps
+            if [ "$last_year" = "$curr_year" ] && [ "$last_month" = "$curr_month" ] && [ $(( 10#$curr_day - 10#$last_day )) -eq 1 ]; then
+                day_diff=1
+            elif [ "$last_year" = "$curr_year" ] && [ $(( 10#$curr_month - 10#$last_month )) -eq 1 ]; then
+                # Last day of month check (simplified)
+                if [ "$last_day" = "31" ] || [ "$last_day" = "30" ] || 
+                   ([ "$last_month" = "02" ] && ([ "$last_day" = "28" ] || [ "$last_day" = "29" ])); then
+                    if [ "$curr_day" = "01" ]; then
+                        day_diff=1
+                    fi
+                fi
+            elif [ $(( 10#$curr_year - 10#$last_year )) -eq 1 ] && [ "$last_month" = "12" ] && [ "$curr_month" = "01" ]; then
+                if [ "$last_day" = "31" ] && [ "$curr_day" = "01" ]; then
+                    day_diff=1
+                fi
+            fi
+        fi
 
         if [ "$day_diff" -eq 1 ]; then
             # Increment streak if the script was used on the next day
@@ -434,8 +501,8 @@ update_streak() {
         fi
 
         # Update .streak file
-        sed -i "s/^last_date_used=.*/last_date_used=$current_date/" "$streak_file"
-        sed -i "s/^streak=.*/streak=$streak/" "$streak_file"
+        sed_inplace "$streak_file" "^last_date_used=.*" "last_date_used=$current_date"
+        sed_inplace "$streak_file" "^streak=.*" "streak=$streak"
     fi
 }
 
@@ -450,6 +517,13 @@ case "$SHELL_NAME" in
             # Strip the extended format: : timestamp:sequence;command
             c=$(echo "$c" | sed -e 's/^: [0-9]\+:[0-9]\+;//' -e 's/^[ \t]*//')
         fi
+        printf '%s\n' "$c"
+        ;;
+    fish)
+        # Fish history is stored in JSON format
+        # Extract the last command (the most recent one will be at the top of the file)
+        # Format: {"cmd":"command","when":"timestamp"}
+        read -r c <<< "$(head -n 100 "$histfile" | grep -m 1 '"cmd"' | sed -e 's/.*"cmd"[[:space:]]*:[[:space:]]*"\(.*\)",.*/\1/' -e 's/\\\"/"/g')"
         printf '%s\n' "$c"
         ;;
     *)
@@ -549,7 +623,7 @@ get_quote() {
         2[5-9]) printf -- "  -\"My one-liner fixed your \n    DNS, and brewed coffee.\"" ;;
         3[0-9]) printf -- "  -\"I herd servers like cats.\"" ;;
         4[0-9]) printf -- "    -\"My scripts have error\n    handling… and comments.\"" ;;
-        5[0-9]) printf -- "  -\"I SSH through three hops\n    just to say ‘hi’.\"" ;;
+        5[0-9]) printf -- "  -\"I SSH through three hops\n    just to say 'hi'.\"" ;;
         6[0-9]) printf -- "  -\"I see regex in my sleep.\"" ;;
         7[0-9]) printf -- "   -\"I use vi to edit emacs\n       configs. Fight me.\"" ;;
         8[0-9]) printf -- "    -\"I filed a bug report…\n       and then fixed it.\"" ;;
@@ -587,6 +661,8 @@ ghelp() {
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
 # repeated commands less, wrong commands still give a little. At least you tried.
+#
+# Supported shells: bash, zsh, fish
 #
 # You can use checkrank at any time to check your current progress.
 # Use checkstats to display usage stats.
