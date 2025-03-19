@@ -3,7 +3,7 @@
 ![Description of the image](img/screenshot1.png)
 
 
-This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 70 achievements. Supports bash and zsh shells.
+This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 78 achievements. Supports bash and zsh shells.
 
 ## Setup for bash
 
