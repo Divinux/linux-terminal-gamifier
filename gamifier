@@ -29,6 +29,30 @@
 # 4. Restart your terminal or run
 #        source ~/.zshrc
 #
+# Setup for fish:
+# 1. Save this file in your home directory
+#        curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
+# 2. Source the file in your fish config. This can be done manually or by running
+#        echo 'source ~/gamifier' >> ~/.config/fish/config.fish
+# 3. Add a function to run update_exp after each command using fish event system
+#        echo 'function --on-event fish_postexec; update_exp; end' >> ~/.config/fish/config.fish
+# 4. Restart your terminal or run
+#        source ~/.config/fish/config.fish
+#
+# Setup for PowerShell (v2-7):
+# 1. Save this file in your PowerShell profile directory
+#        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier" -OutFile "$HOME\gamifier"
+# 2. Create or update your PowerShell profile to source the file
+#        if (!(Test-Path -Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
+#        Add-Content -Path $PROFILE -Value ". `$HOME\gamifier"
+# 3. Add a function to your profile to run update_exp after each command
+#        Add-Content -Path $PROFILE -Value "function prompt { update_exp; return '`PS> ' }"
+# 4. Restart PowerShell or reload your profile
+#        . $PROFILE
+# Note: In PowerShell, some commands like 'checkrank', 'checkstats', etc. may conflict with existing
+#       PowerShell commands. If this happens, the script will automatically create aliases with the
+#       prefix 'ltg_' (e.g., 'ltg_checkrank', 'ltg_checkstats', etc.).
+#
 # Additional info:
 # 1. This script creates a directory under $XDG_DATA_HOME (defaults to ~/.local/share/ and uses it as a
 #    fallback if $XDG_DATA_HOME is not set) with four additional files:
@@ -46,8 +70,10 @@
 #
 # Uninstall:
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc, or if using zsh
-#    remove 'source ~/gamifier', 'setopt incappendhistory' and precmd() { update_exp; } from your .zshrc
-# 2. Delete the gamifier file, and the ~/.local/share/gamifier directory
+#    remove 'source ~/gamifier', 'setopt incappendhistory' and precmd() { update_exp; } from your .zshrc,
+#    or if using fish remove 'source ~/gamifier' and 'function --on-event fish_postexec; update_exp; end' from ~/.config/fish/config.fish,
+#    or if using PowerShell remove the lines you added to your $PROFILE that reference gamifier
+# 2. Delete the gamifier file, and the ~/.local/share/gamifier directory (or ~/AppData/Local/gamifier on Windows)
 # 3. Restart your terminal
 #
 # Copyright (c) 2025 Divinux
@@ -104,7 +130,25 @@ if [ ! -f "$streak_file" ]; then
 fi
 
 # Detect shell
-SHELL_NAME=$(ps -p $$ -o comm=)
+SHELL_NAME=$(ps -p $$ -o comm= 2>/dev/null || echo $0)
+
+# Handle PowerShell detection
+if [[ "$SHELL_NAME" == *"pwsh"* ]] || [[ "$SHELL_NAME" == *"powershell"* ]]; then
+    IS_POWERSHELL=true
+    POWERSHELL_VERSION=$(powershell -NoProfile -Command '$PSVersionTable.PSVersion.Major' 2>/dev/null || echo "0")
+    
+    # Check if running on Windows or Unix-like
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        IS_WINDOWS=true
+        # Adjust save directory for Windows if needed
+        if [[ -z "$XDG_DATA_HOME" ]]; then
+            SAVE_DIR="$HOME/AppData/Local/gamifier"
+        fi
+    fi
+else
+    IS_POWERSHELL=false
+    IS_WINDOWS=false
+fi
 
 # Determine history file location
 case "$SHELL_NAME" in
@@ -126,6 +170,32 @@ case "$SHELL_NAME" in
             histfile="${latest:-$HOME/.histfile}"
         fi
         ;;
+    fish)
+        # Fish stores history in a different format
+        histfile="$HOME/.local/share/fish/fish_history"
+        ;;
+    *pwsh*|*powershell*)
+        # PowerShell doesn't use a simple history file, we'll use a different approach
+        if [ "$IS_WINDOWS" = true ]; then
+            # PowerShell on Windows
+            if [ "$POWERSHELL_VERSION" -ge 7 ]; then
+                # PS7+ on Windows
+                histfile="$HOME/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt"
+            else
+                # PS2 to PS5.1 on Windows
+                histfile="$HOME/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt"
+            fi
+        else
+            # PowerShell on Linux/macOS
+            if [ "$POWERSHELL_VERSION" -ge 7 ]; then
+                # PS7+ on Linux/macOS
+                histfile="$HOME/.local/share/powershell/PSReadLine/ConsoleHost_history.txt"
+            else
+                # Older PowerShell on Linux is less common
+                histfile="$HOME/.local/share/powershell/PSReadLine/ConsoleHost_history.txt"
+            fi
+        fi
+        ;;
 	*)
 		# if the variable HISTFILE is set, use it, otherwise just error output
 		# this happens when ps fails
@@ -136,11 +206,6 @@ case "$SHELL_NAME" in
 		fi
         ;;
 esac
-
-prev_hist_count=$(wc -l < "$histfile")
-
-# Get HISTSIZE limit
-hist_size=${HISTSIZE:-500}
 
 # Initialize achievements file if it doesn't exist
 if [ ! -f "$achievements_file" ]; then
@@ -197,7 +262,7 @@ Taskmaster:Monitor system tasks:top:command:LOCKED
 Echo Seeker:Check network connection:ping:command:LOCKED
 Data Hunter:Download a file from the web:wget:command:LOCKED
 Web Whisperer:Fetch data from a URL:curl:command:LOCKED
-Reader:Display a file’s contents:cat:command:LOCKED
+Reader:Display a file's contents:cat:command:LOCKED
 Scribe:Edit a file with nano:nano:command:LOCKED
 Wizard:Edit a file with Vim:vim:command:LOCKED
 Scholar:Read the manual:man:command:LOCKED
@@ -226,6 +291,13 @@ Server-grade Dedication:Use the terminal daily for an entire year:365:streak:LOC
 EOF
 fi
 
+# Check for PowerShell command conflicts if running in PowerShell
+if [ "$IS_POWERSHELL" = true ]; then
+    # Run this after all functions are defined
+    check_powershell_execution_policy
+    check_powershell_command_conflicts
+fi
+
 # Function to get the current EXP
 get_exp() {
     grep "EXP=" "$exp_file" | cut -d'=' -f2
@@ -233,7 +305,7 @@ get_exp() {
 
 # Function to set EXP
 set_exp() {
-    sed -i "s/^EXP=.*/EXP=$1/" "$exp_file"
+    crossplatform_sed_inplace "s/^EXP=.*/EXP=$1/" "$exp_file"
 }
 
 # Function to get the current LVL
@@ -261,7 +333,7 @@ level_up() {
     while [ "$exp" -ge "$needed" ]; do
         new_lvl=$((lvl + 1))
         level_up_message "$new_lvl"
-        sed -i "s/^LVL=.*/LVL=$new_lvl/" "$exp_file"
+        set_exp "$new_lvl"
         exp=$((exp - needed))
         needed=$(exp_needed_for_level)
         lvl=$new_lvl
@@ -310,120 +382,199 @@ check_achievements() {
 
     # Apply updates one by one to avoid sed syntax errors
     for entry in "${updates[@]}"; do
-        sed -i "s/^$entry/${entry/LOCKED/UNLOCKED}/" "$achievements_file"
+        crossplatform_sed_inplace "s/^$entry/${entry/LOCKED/UNLOCKED}/" "$achievements_file"
     done
 }
 
 # Function to update or add command usage
 update_command_usage() {
-command="$(getlastcommand)"
-# Use a subshell to avoid polluting the environment
-    (
-        export CMD="$command"
-        awk -F ':::' '
-            BEGIN { cmd = ENVIRON["CMD"] }
-            $1 == cmd {
-                $2 += 1
-                found = 1
-            }
-            { print $1 ":::" $2 }
-            END {
-                if (!found) print cmd ":::" 1
-            }
-        ' $used_commands_file > tmp && mv tmp $used_commands_file
-    )
-}
-
-# Helper function to handle command use
-handle_command() {
     local command=$1
-    local exp_increment=$2
-    local message=$3
-    local notify=$4
+    local is_valid_command=$2
 
+    # Set the command for awk processing
+    export CMD="$command"
+    
     # Update command usage count
-    update_command_usage "$command"
-
+    awk -F ':::' '
+        BEGIN { cmd = ENVIRON["CMD"] }
+        $0 ~ cmd ":::" {
+            # Command found, increment count
+            split($0, parts, ":::")
+            count = parts[2] + 1
+            print parts[1] ":::" count
+            found = 1
+            next
+        }
+        # Print all other lines unchanged
+        { print }
+        END {
+            # If command not found, add it with count 1
+            if (!found) print cmd ":::" 1
+        }
+    ' $used_commands_file > tmp && mv tmp $used_commands_file
+  
     # Update EXP
     exp=$(get_exp)
+    exp_increment=0
+    local message=""
+    
+    if [ "$is_valid_command" = true ]; then
+        if ! grep -Fq "$command:::" "$used_commands_file" || [ $(grep -F "$command:::" "$used_commands_file" | cut -d':' -f3) -le 1 ]; then
+            exp_increment=$exp_new_command
+            message="$msg_new_command"
+            notify=$notify_on_new
+        else
+            exp_increment=$exp_reused_command
+            message="$msg_repeat_command"
+            notify=$notify_on_reused
+        fi
+    else
+        if ! grep -Fq "$command:::" "$used_commands_file" || [ $(grep -F "$command:::" "$used_commands_file" | cut -d':' -f3) -le 1 ]; then
+            exp_increment=$exp_false_new_command
+            message="$msg_false_new_command"
+            notify=$notify_on_false_new
+        else
+            exp_increment=$exp_false_reused_command
+            message="$msg_false_repeat_command"
+            notify=$notify_on_false_reused
+        fi
+    fi
+    
     new_exp=$((exp + exp_increment))
     set_exp "$new_exp"
-
-    # Update total commands count
-    total_commands=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
-    total_commands=$((total_commands + 1))
-    sed -i "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total_commands/" "$exp_file"
-
+    
+    # Update total commands
+    total=$(grep "TOTAL_COMMANDS=" "$exp_file" | cut -d'=' -f2)
+    total=$((total + 1))
+    sed -i "s/^TOTAL_COMMANDS=.*/TOTAL_COMMANDS=$total/" "$exp_file"
+  
     # If notification is enabled, print message
-    if [ "$notify" = true ]; then
+    if [ "$notify" = true ] && [ "$exp_increment" -gt 0 ]; then
         echo "$message"
-		# If any EXP was gained, echo the new EXP to the console
-        if [ "$exp_increment" -gt 0 ]; then
-            echo "Current EXP: $new_exp/$(exp_needed_for_level)"
-        fi
+        echo "Current EXP: $new_exp/$(exp_needed_for_level)"
     fi
+
     # Check for achievements
     check_achievements "$command"
+    
+    # Check for level up
+    level_up
 }
 
-# Hook into the shell prompt
-update_exp() {
-    # Update streak
-    update_streak
-    local new_count=$(wc -l < "$histfile")
+# Function to get the last command from history
+get_last_command() {
+    # This is a stub function that now calls getlastcommand for backwards compatibility
+    getlastcommand
+}
 
-    # Check if history file has been truncated
-    if [ "$new_count" -lt "$prev_hist_count" ] || [ "$new_count" -ge "$hist_size" ]; then
-        echo "Warning! HISTSIZE was reached! Gamifier will not work!"
-        echo "Please increase your HISTSIZE!"
-        return
-    fi
-
-    if [ "$new_count" -gt "$prev_hist_count" ]; then
-        prev_hist_count="$new_count"
-
-        # Get the last command entered
-        local last_command=$(getlastcommand)
-        local first_word=$(echo "$last_command" | awk '{print $1}')
-
-        # If command starts with sudo or doas, extract the actual command being run
-        if [[ "$first_word" == "sudo" || "$first_word" == "doas" ]]; then
-            first_word=$(echo "$last_command" | awk '{print $2}')
-        fi
-
-        # Check if the command is valid (not "command not found")
-        if (command -v "$first_word" >/dev/null 2>&1) || (type "$first_word" >/dev/null 2>&1); then
-            # If valid, handle it with exp_new_command for first-time use, exp_reused_command for subsequent use
-            if ! grep -Fq "$last_command:::" "$used_commands_file"; then
-                handle_command "$last_command" "$exp_new_command" "$msg_new_command" "$notify_on_new"
-            else
-                handle_command "$last_command" "$exp_reused_command" "$msg_repeat_command" "$notify_on_reused"
+# Function to get the last command from the history file
+getlastcommand() {
+    local c
+    case "$SHELL_NAME" in
+        zsh)
+            read -r c <<< "$(tail -n 1 $histfile | sed 's/\\n/\\\\n/g')"
+            # Check for Zsh extended format
+            if [[ "$c" == :* ]]; then
+                # Strip the extended format: : timestamp:sequence;command
+                c=$(echo "$c" | sed -e 's/^: [0-9]\+:[0-9]\+;//' -e 's/^[ \t]*//')
             fi
-        else
-            # If invalid, handle it with exp_false_new_command for first-time use, exp_false_reused_command for subsequent invalid use
-            if ! grep -Fq "$last_command:::" "$used_commands_file"; then
-                handle_command "$last_command" "$exp_false_new_command" "$msg_false_new_command" "$notify_on_false_new"
+            printf '%s\n' "$c"
+            ;;
+        fish)
+            # Fish history format is different, parse it
+            # Format: - cmd: command\n  when: timestamp
+            if [ -f "$histfile" ]; then
+                # Find the most recent command by looking for "- cmd:" lines
+                local cmd=$(grep -a "^- cmd:" "$histfile" | tail -n 1 | sed -E 's/^- cmd: (.*)/\1/')
+                printf '%s\n' "$cmd"
             else
-                handle_command "$last_command" "$exp_false_reused_command" "$msg_false_repeat_command" "$notify_on_false_reused"
+                printf '%s\n' ""
             fi
-        fi
+            ;;
+        *pwsh*|*powershell*)
+            # PowerShell history format handling
+            if [ "$IS_POWERSHELL" = true ]; then
+                # For PowerShell, we can try to get the last command directly from PowerShell
+                if [ "$IS_WINDOWS" = true ]; then
+                    # On Windows, use PowerShell to get the last command
+                    # This is safer than trying to parse the history file directly
+                    local cmd=$(powershell -NoProfile -Command "(Get-History -Count 1).CommandLine" 2>/dev/null)
+                    printf '%s\n' "$cmd"
+                else
+                    # On Unix systems with PowerShell
+                    if [ -f "$histfile" ]; then
+                        # The history file exists, read the last line
+                        local cmd=$(tail -n 1 "$histfile" 2>/dev/null)
+                        printf '%s\n' "$cmd"
+                    else
+                        # Try to get it directly from PowerShell
+                        local cmd=$(pwsh -NoProfile -Command "(Get-History -Count 1).CommandLine" 2>/dev/null)
+                        printf '%s\n' "$cmd"
+                    fi
+                fi
+            else
+                # Fallback if PowerShell commands fail
+                printf '%s\n' ""
+            fi
+            ;;
+        *)
+            # For bash and other shells
+            if [ -f "$histfile" ]; then
+                read -r c <<< "$(tail -n 1 $histfile)"
+                printf '%s\n' "$c"
+            else
+                printf '%s\n' ""
+            fi
+            ;;
+    esac
+}
 
-        # Check for level up
-        level_up
+# Function to calculate date difference that works cross-platform
+calculate_date_diff() {
+    local date1="$1"  # format: YYYY-MM-DD
+    local date2="$2"  # format: YYYY-MM-DD
+    
+    if [ "$IS_POWERSHELL" = true ] || [ "$IS_WINDOWS" = true ]; then
+        # PowerShell/Windows approach
+        powershell -NoProfile -Command "
+            \$date1 = [datetime]::ParseExact('$date1', 'yyyy-MM-dd', \$null)
+            \$date2 = [datetime]::ParseExact('$date2', 'yyyy-MM-dd', \$null)
+            \$diff = \$date2 - \$date1
+            Write-Output \$diff.Days
+        "
+    elif command -v gdate >/dev/null 2>&1; then
+        # Use gdate if available (macOS with GNU utilities)
+        local d1=$(gdate -d "$date1" +%s)
+        local d2=$(gdate -d "$date2" +%s)
+        echo $(( (d2 - d1) / 86400 ))
+    else
+        # Fallback for Unix systems without GNU date
+        # Convert dates to seconds since epoch without -d option
+        local IFS="-"
+        read -r y1 m1 d1 <<< "$date1"
+        read -r y2 m2 d2 <<< "$date2"
+        
+        # Use awk for date difference calculation
+        awk -v y1="$y1" -v m1="$m1" -v d1="$d1" -v y2="$y2" -v m2="$m2" -v d2="$d2" '
+        BEGIN {
+            # Convert date to Julian day number
+            # Algorithm from https://en.wikipedia.org/wiki/Julian_day
+            jdn1 = (1461 * (y1 + 4800 + (m1 - 14)/12))/4 + (367 * (m1 - 2 - 12 * ((m1 - 14)/12)))/12 - (3 * ((y1 + 4900 + (m1 - 14)/12)/100))/4 + d1 - 32075
+            jdn2 = (1461 * (y2 + 4800 + (m2 - 14)/12))/4 + (367 * (m2 - 2 - 12 * ((m2 - 14)/12)))/12 - (3 * ((y2 + 4900 + (m2 - 14)/12)/100))/4 + d2 - 32075
+            print jdn2 - jdn1
+        }'
     fi
 }
 
 # Function to update daily use streak
 update_streak() {
-    local current_date=$(date +%Y-%m-%d)
+    local current_date=$(crossplatform_date)
     local last_date_used=$(grep "last_date_used=" "$streak_file" | cut -d'=' -f2)
     local streak=$(grep "streak=" "$streak_file" | cut -d'=' -f2)
 
     # Check if the script is used on the next day
     if [ "$current_date" != "$last_date_used" ]; then
-        local last_date=$(date -d "$last_date_used" +%s)
-        local current_date_timestamp=$(date -d "$current_date" +%s)
-        local day_diff=$(( (current_date_timestamp - last_date) / 86400 ))
+        local day_diff=$(calculate_date_diff "$last_date_used" "$current_date")
 
         if [ "$day_diff" -eq 1 ]; then
             # Increment streak if the script was used on the next day
@@ -437,27 +588,6 @@ update_streak() {
         sed -i "s/^last_date_used=.*/last_date_used=$current_date/" "$streak_file"
         sed -i "s/^streak=.*/streak=$streak/" "$streak_file"
     fi
-}
-
-#function to get the last command from the history file
-getlastcommand(){
-local c
-case "$SHELL_NAME" in
-    zsh)
-        read -r c <<< "$(tail -n 1 $histfile | sed 's/\\n/\\\\n/g')"
-        # Check for Zsh extended format
-        if [[ "$c" == :* ]]; then
-            # Strip the extended format: : timestamp:sequence;command
-            c=$(echo "$c" | sed -e 's/^: [0-9]\+:[0-9]\+;//' -e 's/^[ \t]*//')
-        fi
-        printf '%s\n' "$c"
-        ;;
-    *)
-		local command="$1"
-		read -r c <<< "$(tail -n 1 $histfile)"
-		printf '%s\n' "$c"
-        ;;
-esac
 }
 
 # Checks the current level
@@ -549,7 +679,7 @@ get_quote() {
         2[5-9]) printf -- "  -\"My one-liner fixed your \n    DNS, and brewed coffee.\"" ;;
         3[0-9]) printf -- "  -\"I herd servers like cats.\"" ;;
         4[0-9]) printf -- "    -\"My scripts have error\n    handling… and comments.\"" ;;
-        5[0-9]) printf -- "  -\"I SSH through three hops\n    just to say ‘hi’.\"" ;;
+        5[0-9]) printf -- "  -\"I SSH through three hops\n    just to say 'hi'.\"" ;;
         6[0-9]) printf -- "  -\"I see regex in my sleep.\"" ;;
         7[0-9]) printf -- "   -\"I use vi to edit emacs\n       configs. Fight me.\"" ;;
         8[0-9]) printf -- "    -\"I filed a bug report…\n       and then fixed it.\"" ;;
@@ -614,7 +744,12 @@ gupdate()
     if [[ "$current_version" != "$remote_version" ]]; then
         echo "New version available: v$remote_version (current: v$current_version). Updating..."
         curl --output $HOME/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
-        source $HOME/gamifier
+        # Use the appropriate source command based on shell
+        if [ "$IS_POWERSHELL" = true ]; then
+            . $HOME/gamifier
+        else
+            source $HOME/gamifier
+        fi
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
@@ -624,18 +759,221 @@ updateachievementlist
 
 updateachievementlist()
 {
-local new_achievements existing_achievements
-# Extract achievements from the new local script
-        new_achievements=$(grep -oP '^\S.*:.*:.*:LOCKED$' "$HOME/gamifier")
+    local new_achievements existing_achievements
+    # Extract achievements from the new local script
+    new_achievements=$(grep -oP '^\S.*:.*:.*:LOCKED$' "${HOME}/gamifier")
 
-        # Load existing achievements (including unlocked ones)
-        existing_achievements=$(cat "$achievements_file")
+    # Load existing achievements (including unlocked ones)
+    existing_achievements=$(cat "${achievements_file}")
 
-        # Loop through new achievements and check if they already exist based on their name
-        while IFS= read -r new_achievement; do
-            new_achievement_name=$(echo "$new_achievement" | cut -d: -f1)  # Get the achievement name before the first colon
-            if ! echo "$existing_achievements" | grep -q "^$new_achievement_name:"; then
-                echo "$new_achievement" >> "$achievements_file"
+    # Loop through new achievements and check if they already exist based on their name
+    while IFS= read -r new_achievement; do
+        new_achievement_name=$(echo "${new_achievement}" | cut -d: -f1)  # Get the achievement name before the first colon
+        if ! echo "${existing_achievements}" | grep -q "^${new_achievement_name}:"; then
+            echo "${new_achievement}" >> "${achievements_file}"
+        fi
+    done <<< "${new_achievements}"
+}
+
+# PowerShell compatibility functions
+# These functions provide alternatives to common Unix commands when running in PowerShell
+
+# Check for command name conflicts in PowerShell
+check_powershell_command_conflicts() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        local conflict_found=false
+        local conflicting_commands=""
+        
+        # List of our commands that might conflict
+        local our_commands=("checkrank" "checkstats" "ghelp" "gupdate")
+        
+        # Check each command for conflicts
+        for cmd in "${our_commands[@]}"; do
+            # Use Get-Command to check if command exists in PowerShell
+            local cmd_exists=$(powershell -NoProfile -Command "if(Get-Command $cmd -ErrorAction SilentlyContinue){Write-Output 'exists'}" 2>/dev/null)
+            if [ "$cmd_exists" = "exists" ]; then
+                conflict_found=true
+                conflicting_commands="$conflicting_commands $cmd"
             fi
-        done <<< "$new_achievements"
+        done
+        
+        # If conflicts were found, create aliases with ltg_ prefix
+        if [ "$conflict_found" = true ]; then
+            echo "Warning: Some Linux Terminal Gamifier commands conflict with existing PowerShell commands: $conflicting_commands"
+            echo "Creating alternative command aliases with 'ltg_' prefix."
+            
+            # Create aliases for our commands
+            if [[ "$conflicting_commands" == *"checkrank"* ]]; then
+                alias ltg_checkrank=checkrank
+                echo "Use 'ltg_checkrank' instead of 'checkrank'"
+            fi
+            
+            if [[ "$conflicting_commands" == *"checkstats"* ]]; then
+                alias ltg_checkstats=checkstats
+                echo "Use 'ltg_checkstats' instead of 'checkstats'"
+            fi
+            
+            if [[ "$conflicting_commands" == *"ghelp"* ]]; then
+                alias ltg_ghelp=ghelp
+                echo "Use 'ltg_ghelp' instead of 'ghelp'"
+            fi
+            
+            if [[ "$conflicting_commands" == *"gupdate"* ]]; then
+                alias ltg_gupdate=gupdate
+                echo "Use 'ltg_gupdate' instead of 'gupdate'"
+            fi
+        fi
+    fi
+}
+
+# Safe sed replacement for PowerShell
+powershell_sed() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        local pattern="$1"
+        local input="$2"
+        if [ -n "$input" ]; then
+            printf "%s" "$input" | powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { `$_ -replace '$pattern' }"
+        else
+            powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { `$_ -replace '$pattern' }"
+        fi
+    else
+        sed "$1" <<<"$2"
+    fi
+}
+
+# Safe grep replacement for PowerShell
+powershell_grep() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        # Use PowerShell's Select-String
+        local pattern="$1"
+        local file="$2"
+        if [ -n "$file" ] && [ -f "$file" ]; then
+            powershell -NoProfile -Command "Select-String -Pattern '$pattern' -Path '$file' | ForEach-Object { \$_.Line }"
+        else
+            # Read from stdin if no file is provided
+            powershell -NoProfile -Command "Select-String -Pattern '$pattern'"
+        fi
+    else
+        # Fall back to regular grep if not in PowerShell
+        if [ -n "$2" ]; then
+            grep "$1" "$2"
+        else
+            grep "$1"
+        fi
+    fi
+}
+
+# File existence check that works in both environments
+file_exists() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        powershell -NoProfile -Command "Test-Path -Path '$1'" | grep -q "True"
+    else
+        [ -f "$1" ]
+    fi
+}
+
+# Directory existence check that works in both environments
+dir_exists() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        powershell -NoProfile -Command "Test-Path -Path '$1' -PathType Container" | grep -q "True"
+    else
+        [ -d "$1" ]
+    fi
+}
+
+# Create a directory in a cross-platform way
+create_dir() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$1'" > /dev/null
+    else
+        mkdir -p "$1"
+    fi
+}
+
+# Write to a file in a cross-platform way
+write_file() {
+    local file="$1"
+    local content="$2"
+    
+    if [ "$IS_POWERSHELL" = true ]; then
+        # Escape single quotes in the content for PowerShell
+        content=$(echo "$content" | sed "s/'/''/g")
+        powershell -NoProfile -Command "Set-Content -Path '$file' -Value '$content'"
+    else
+        echo "$content" > "$file"
+    fi
+}
+
+# Append to a file in a cross-platform way
+append_file() {
+    local file="$1"
+    local content="$2"
+    
+    if [ "$IS_POWERSHELL" = true ]; then
+        # Escape single quotes in the content for PowerShell
+        content=$(echo "$content" | sed "s/'/''/g")
+        powershell -NoProfile -Command "Add-Content -Path '$file' -Value '$content'"
+    else
+        echo "$content" >> "$file"
+    fi
+}
+
+crossplatform_date() {
+    if [ "$IS_WINDOWS" = true ]; then
+        powershell -Command "Get-Date -Format 'yyyy-MM-dd'"
+    else
+        date +%Y-%m-%d
+    fi
+}
+
+# Check PowerShell execution policy and suggest solution
+check_powershell_execution_policy() {
+    if [ "$IS_POWERSHELL" = true ]; then
+        local current_policy=$(powershell -NoProfile -Command "Get-ExecutionPolicy" 2>/dev/null)
+        
+        if [ "$current_policy" = "Restricted" ]; then
+            echo "Warning: PowerShell execution policy is set to 'Restricted'"
+            echo "This prevents running scripts. To fix this, you can:"
+            echo "1. Run PowerShell as Administrator and execute:"
+            echo "   Set-ExecutionPolicy RemoteSigned -Scope CurrentUser"
+            echo "2. Or use this one-liner (requires admin rights):"
+            echo "   Start-Process powershell -Verb RunAs -ArgumentList 'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser'"
+            echo ""
+            echo "After changing the policy, you'll need to:"
+            echo "1. Close and reopen PowerShell"
+            echo "2. Run: . $PROFILE"
+            echo ""
+            echo "Note: RemoteSigned allows local scripts to run without signing, but requires downloaded scripts to be signed by a trusted publisher."
+        fi
+    fi
+}
+
+# Кросс-платформенная замена для sed -i
+crossplatform_sed_inplace() {
+    local pattern="$1"
+    local file="$2"
+    
+    if [ "$IS_POWERSHELL" = true ]; then
+        # PowerShell реализация
+        powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { `$_ -replace '$pattern' } | Set-Content -Path '$file'"
+    elif [ "$(uname)" = "Darwin" ]; then
+        # macOS требует пустое расширение для -i
+        sed -i '' "$pattern" "$file"
+    else
+        # Linux и другие системы
+        sed -i "$pattern" "$file"
+    fi
+}
+
+# Нормализация путей для совместимости с Windows
+normalize_path() {
+    local path="$1"
+    
+    if [ "$IS_WINDOWS" = true ]; then
+        # Заменяем / на \ для Windows
+        echo "$path" | sed 's|/|\\|g'
+    else
+        # Оставляем как есть для Unix
+        echo "$path"
+    fi
 }
