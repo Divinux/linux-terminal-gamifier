@@ -368,6 +368,8 @@ handle_command() {
 
 # Hook into the shell prompt
 update_exp() {
+    # Update streak
+    update_streak
     local new_count=$(wc -l < "$histfile")
 
     # Check if history file has been truncated
@@ -408,9 +410,6 @@ update_exp() {
 
         # Check for level up
         level_up
-
-        # Update streak
-        update_streak
     fi
 }
 
