@@ -615,12 +615,11 @@ gupdate()
         echo "New version available: v$remote_version (current: v$current_version). Updating..."
         curl --output $HOME/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
         source $HOME/gamifier
-        updateachievementlist
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
-        updateachievementlist
     fi
+updateachievementlist
 }
 
 updateachievementlist()
