@@ -37,7 +37,7 @@
 #    Note: This requires the bass plugin. Install it with:
 #        fisher install edc/bass
 # 3. Set up a function to run after each command is executed
-#        echo -e 'function gamifier_hook --on-event fish_postexec\n    bass source ~/gamifier && update_exp\nend' >> ~/.config/fish/config.fish
+#        echo -e 'function gamifier_hook --on-event fish_postexec\n    bass "source ~/gamifier && update_exp"\nend' >> ~/.config/fish/config.fish
 # 4. Restart your terminal or run
 #        source ~/.config/fish/config.fish
 #
