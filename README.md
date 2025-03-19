@@ -66,6 +66,9 @@ This script gamifies your terminal by tracking experience points and levels base
 Q: The script stops working after installing OhMy*  
 A: OhMy* overwrites the PROMPT_COMMAND, so either make sure to install OhMy* before the Gamifier script, or add `update_exp` to your PROMPT_COMMAND manually afterwards.
 
+Q: The script doesn't notice me changing settings in it or in my .bashrc/.zshrc  
+A: Sometimes just calling `source .bashrc` or `source .zshrc` isn't enough, refreshing the script explicitly with `source gamifier` usually solves this issue.
+
 ## Uninstall
 
 1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or  
