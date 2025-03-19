@@ -619,6 +619,7 @@ gupdate()
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
+        updateachievementlist
     fi
 }
 
