@@ -1,6 +1,6 @@
 # Linux Terminal Gamifier
 
-![Description of the image](img/screenshot.png)
+![Description of the image](img/screenshot1.png)
 
 
 This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 70 achievements. Supports bash and zsh shells.
@@ -45,10 +45,11 @@ This script gamifies your terminal by tracking experience points and levels base
 
 ## Additional Information
 
-- This script creates a directory under `$XDG_DATA_HOME` (defaults to `~/.local/share/` if `$XDG_DATA_HOME` is not set) with three additional files:
+- This script creates a directory under `$XDG_DATA_HOME` (defaults to `~/.local/share/` if `$XDG_DATA_HOME` is not set) with four additional files:
   - `.exp`: Tracks the current experience amount and level.
   - `.usedcommands`: Contains all commands the user has used so far.
   - `.achievements`: Tracks the status of all achievements.
+  - `.streak`: tracks the daily use streak.
 - To continue tracking your progress on a new install, just copy this directory over.
 - You may want to increase your `HISTSIZE` and `HISTFILESIZE`.
   - Setting them to nothing, i.e., `HISTSIZE=` and `HISTFILESIZE=`, makes them unlimited.
