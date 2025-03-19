@@ -948,7 +948,7 @@ check_powershell_execution_policy() {
     fi
 }
 
-# Кросс-платформенная замена для sed -i
+# Crossplatform sed -i
 crossplatform_sed_inplace() {
     local pattern="$1"
     local file="$2"
@@ -965,7 +965,7 @@ crossplatform_sed_inplace() {
     fi
 }
 
-# Нормализация путей для совместимости с Windows
+# Normalizing paths for Windows
 normalize_path() {
     local path="$1"
     
