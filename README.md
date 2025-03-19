@@ -61,6 +61,11 @@ This script gamifies your terminal by tracking experience points and levels base
 - Once the "New command discovered!" messages lose their novelty, they can be disabled by setting the notify_on_new variable in line 65 to false.
 - Security consideration: The script pulls straight from your history file and saves to the .usedcommands file, so it will not contain anything that your history does not already contain anyways, just be aware that there is now a copy of your history saved somewhere else.
 
+## FAQ
+
+Q: The script stops working after installing OhMy*
+A: OhMy* overwrites the PROMPT_COMMAND, so either make sure to install OhMy* before the Gamifier script, or add `update_exp` to your PROMPT_COMMAND manually afterwards.
+
 ## Uninstall
 
 1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or  
