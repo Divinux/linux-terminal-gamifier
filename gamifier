@@ -948,19 +948,19 @@ check_powershell_execution_policy() {
     fi
 }
 
-# Crossplatform sed -i
+# Cross-platform replacement for sed -i
 crossplatform_sed_inplace() {
     local pattern="$1"
     local file="$2"
     
     if [ "$IS_POWERSHELL" = true ]; then
-        # PowerShell реализация
+        # PowerShell implementation
         powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { `$_ -replace '$pattern' } | Set-Content -Path '$file'"
     elif [ "$(uname)" = "Darwin" ]; then
-        # macOS требует пустое расширение для -i
+        # macOS requires empty extension for -i
         sed -i '' "$pattern" "$file"
     else
-        # Linux и другие системы
+        # Linux and other systems
         sed -i "$pattern" "$file"
     fi
 }
@@ -970,10 +970,10 @@ normalize_path() {
     local path="$1"
     
     if [ "$IS_WINDOWS" = true ]; then
-        # Заменяем / на \ для Windows
+        # Replace / with \ for Windows
         echo "$path" | sed 's|/|\\|g'
     else
-        # Оставляем как есть для Unix
+        # Keep as is for Unix
         echo "$path"
     fi
 }
