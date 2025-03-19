@@ -159,7 +159,7 @@ crossplatform_sed_inplace() {
     
     if [ "$IS_POWERSHELL" = true ]; then
         # PowerShell implementation
-        powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { `$_ -replace '$pattern' } | Set-Content -Path '$file'"
+        powershell -NoProfile -Command "(Get-Content -Path '$file') | ForEach-Object { \`$_ -replace '$pattern' } | Set-Content -Path '$file'"
     elif [ "$(uname)" = "Darwin" ]; then
         # macOS requires empty extension for -i
         sed -i '' "$pattern" "$file"
@@ -878,9 +878,9 @@ powershell_sed() {
         local pattern="$1"
         local input="$2"
         if [ -n "$input" ]; then
-            printf "%s" "$input" | powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { `$_ -replace '$pattern' }"
+            printf "%s" "$input" | powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { \`$_ -replace '$pattern' }"
         else
-            powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { `$_ -replace '$pattern' }"
+            powershell -NoProfile -Command "Get-Content -Raw -Path 'Console' | ForEach-Object { \`$_ -replace '$pattern' }"
         fi
     else
         sed "$1" <<<"$2"
