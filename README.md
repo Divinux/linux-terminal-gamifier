@@ -3,7 +3,7 @@
 ![Description of the image](img/screenshot.png)
 
 
-This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 78 achievements. Supports bash, zsh, fish and PowerShell shells.
+This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 78 achievements. Supports bash and zsh shells.
 
 ## Setup for bash
 
@@ -43,49 +43,6 @@ This script gamifies your terminal by tracking experience points and levels base
    source ~/.zshrc
    ```
 
-## Setup for fish
-
-1. Save this file in your home directory:
-   ```bash
-   curl --output ~/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
-   ```
-2. Source the file in your fish config. This can be done manually or by running:
-   ```bash
-   echo 'source ~/gamifier' >> ~/.config/fish/config.fish
-   ```
-3. Add a function to run update_exp after each command using fish event system:
-   ```bash
-   echo 'function --on-event fish_postexec; update_exp; end' >> ~/.config/fish/config.fish
-   ```
-4. Restart your terminal or run:
-   ```bash
-   source ~/.config/fish/config.fish
-   ```
-
-## Setup for PowerShell (v2-7)
-
-1. Save this file in your PowerShell profile directory:
-   ```powershell
-   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier" -OutFile "$HOME\gamifier"
-   ```
-2. Create or update your PowerShell profile to source the file:
-   ```powershell
-   if (!(Test-Path -Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
-   Add-Content -Path $PROFILE -Value ". `$HOME\gamifier"
-   ```
-3. Add a function to your profile to run update_exp after each command:
-   ```powershell
-   Add-Content -Path $PROFILE -Value "function prompt { update_exp; return 'PS> ' }"
-   ```
-4. Restart PowerShell or reload your profile:
-   ```powershell
-   . $PROFILE
-   ```
-
-> **Note for PowerShell users**: 
-> - If any of the Linux Terminal Gamifier commands (`checkrank`, `checkstats`, `ghelp`, `gupdate`) conflict with existing PowerShell commands, the script will automatically create alternative aliases with the prefix `ltg_` (e.g., `ltg_checkrank`). You'll see a warning message when this happens.
-> - If you see a warning about PowerShell execution policy being 'Restricted', you'll need to change it to allow script execution. The script will provide instructions on how to do this safely using the `RemoteSigned` policy, which allows local scripts to run while requiring downloaded scripts to be signed by a trusted publisher.
-
 ## Additional Information
 
 - This script creates a directory under `$XDG_DATA_HOME` (defaults to `~/.local/share/` if `$XDG_DATA_HOME` is not set) with four additional files:
@@ -112,11 +69,9 @@ A: OhMy* overwrites the PROMPT_COMMAND, so either make sure to install OhMy* bef
 ## Uninstall
 
 1. Remove `source ~/gamifier` and `update_exp;` from your `.bashrc` for bash or  
-   Remove `source ~/gamifier`, `setopt incappendhistory`, and `precmd() { update_exp; }` from your `.zshrc` for zsh or  
-   Remove `source ~/gamifier` and `function --on-event fish_postexec; update_exp; end` from your `~/.config/fish/config.fish` for fish or  
-   Remove the lines you added to your `$PROFILE` that reference gamifier for PowerShell.
+   Remove `source ~/gamifier`, `setopt incappendhistory`, and `precmd() { update_exp; }` from your `.zshrc` for zsh.
 2. Delete the `gamifier` file to remove the script.
-3. Delete the `~/.local/share/gamifier` directory (or `~/AppData/Local/gamifier` on Windows) to remove your savefiles.
+3. Delete the `~/.local/share/gamifier` directory to remove your savefiles.
 4. Restart your terminal.
 
 
