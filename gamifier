@@ -222,7 +222,7 @@ Business Week:5 day streak:5:streak:LOCKED
 It's Been Two Weeks:Use the terminal daily for two weeks:14:streak:LOCKED
 Can't Stop Won't Stop:Use the terminal daily for a month:30:streak:LOCKED
 Seasonal Employee:Use the terminal daily for three months:60:streak:LOCKED
-Ok This Isn't Healthy:Use the terminal daily for an entire year:365:streak:LOCKED
+Server-grade Dedication:Use the terminal daily for an entire year:365:streak:LOCKED
 EOF
 fi
 
