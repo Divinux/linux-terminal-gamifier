@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================
-# Linux Terminal Gamifier v1.6
+# Linux Terminal Gamifier v1.7
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -43,6 +43,7 @@
 # 4. Use checkstats to display usage stats.
 # 5. Use ghelp to display a short info message.
 # 6. Use gupdate to update Linux Terminal Gamifier.
+# 7. Use gimport to import previous history into the used commands file.
 #
 # Uninstall:
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc, or if using zsh
@@ -64,7 +65,7 @@ achievements_file="$SAVE_DIR/.achievements"
 streak_file="$SAVE_DIR/.streak"
 
 # Notification settings
-notify_on_new=true
+notify_on_new=false
 notify_on_reused=false
 notify_on_false_new=true
 notify_on_false_reused=false
@@ -222,7 +223,7 @@ Business Week:5 day streak:5:streak:LOCKED
 It's Been Two Weeks:Use the terminal daily for two weeks:14:streak:LOCKED
 Can't Stop Won't Stop:Use the terminal daily for a month:30:streak:LOCKED
 Seasonal Employee:Use the terminal daily for three months:60:streak:LOCKED
-Server-grade Dedication:Use the terminal daily for an entire year:365:streak:LOCKED
+Ok This Isn't Healthy:Use the terminal daily for an entire year:356:streak:LOCKED
 EOF
 fi
 
@@ -315,23 +316,45 @@ check_achievements() {
 }
 
 # Function to update or add command usage
+# update_command_usage() {
+# command="$(getlastcommand)"
+# # Use a subshell to avoid polluting the environment
+#     (
+#         export CMD="$command"
+#         awk -F ':::' '
+#             BEGIN { cmd = ENVIRON["CMD"] }
+#             $1 == cmd {
+#                 $2 += 1
+#                 found = 1
+#             }
+#             { print $1 ":::" $2 }
+#             END {
+#                 if (!found) print cmd ":::" 1
+#             }
+#         ' $used_commands_file > tmp && mv tmp $used_commands_file
+#     )
+# }
+
 update_command_usage() {
-command="$(getlastcommand)"
-# Use a subshell to avoid polluting the environment
+    local command="$1"
+    local tmp_file
+
+    tmp_file="$(mktemp "${SAVE_DIR}/usedcommands.XXXXXX")" || {
+        echo "Error: Failed to create temp file in $SAVE_DIR" >&2
+        return 1
+    }
+
+    cp "$used_commands_file" "${used_commands_file}.bak" 2>/dev/null
+
     (
         export CMD="$command"
         awk -F ':::' '
             BEGIN { cmd = ENVIRON["CMD"] }
-            $1 == cmd {
-                $2 += 1
-                found = 1
-            }
+            $1 == cmd { $2 += 1; found = 1 }
             { print $1 ":::" $2 }
-            END {
-                if (!found) print cmd ":::" 1
-            }
-        ' $used_commands_file > tmp && mv tmp $used_commands_file
-    )
+            END { if (!found) print cmd ":::" 1 }
+        ' "$used_commands_file" > "$tmp_file"
+    ) && mv "$tmp_file" "$used_commands_file"
 }
 
 # Helper function to handle command use
@@ -582,7 +605,7 @@ ghelp() {
     cat <<EOF
 
 # =============================
-# Linux Terminal Gamifier v1.6
+# Linux Terminal Gamifier v1.7
 # =============================
 # This script gamifies your terminal by tracking experience points and levels
 # based on the number of commands you execute. Newly found commands give more exp,
@@ -592,6 +615,7 @@ ghelp() {
 # Use checkstats to display usage stats.
 # Use ghelp to display a short info message.
 # Use gupdate to update Linux Terminal Gamifier.
+# Use gimport to import previous history into the used commands file.
 
 EOF
 }
@@ -615,11 +639,11 @@ gupdate()
         echo "New version available: v$remote_version (current: v$current_version). Updating..."
         curl --output $HOME/gamifier "https://raw.githubusercontent.com/Divinux/linux-terminal-gamifier/refs/heads/main/gamifier"
         source $HOME/gamifier
+        updateachievementlist
         echo "Update complete!"
     else
         echo "Linux Terminal Gamifier is up to date. (v$current_version)."
     fi
-updateachievementlist
 }
 
 updateachievementlist()
@@ -639,3 +663,51 @@ local new_achievements existing_achievements
             fi
         done <<< "$new_achievements"
 }
+
+# Function to import all previously used but not recorded commands.
+# Useful to import commands used before the installation
+# or in case of accidental reset of the used_commands file
+gimport() {
+    echo "Rebuilding used commands from history file: $histfile"
+
+    # Sanity check
+    if [ ! -f "$histfile" ]; then
+        echo "Error: history file not found at $histfile"
+        return 1
+    fi
+
+    # Backup old usedcommands file
+    if [ -f "$used_commands_file" ]; then
+        cp "$used_commands_file" "${used_commands_file}.bak"
+        echo "Backup created: ${used_commands_file}.bak"
+    fi
+
+    # Parse and rebuild
+    echo "Processing history..."
+    if [ "$SHELL_NAME" = "zsh" ]; then
+        # Detect if Zsh extended history is in use by inspecting the first line
+        if head -n 1 "$histfile" | grep -q '^:'; then
+            sed -E 's/^: [0-9]+:[0-9]+;//' "$histfile" | \
+                awk '{counts[$0]++} END {for (cmd in counts) print cmd ":::" counts[cmd]}' | \
+                sort > "$used_commands_file"
+        else
+            # Plain Zsh history (no timestamps)
+            awk '{counts[$0]++} END {for (cmd in counts) print cmd ":::" counts[cmd]}' \
+                "$histfile" | sort > "$used_commands_file"
+        fi
+    else
+        # Bash
+        awk '{counts[$0]++} END {for (cmd in counts) print cmd ":::" counts[cmd]}' \
+            "$histfile" | sort > "$used_commands_file"
+    fi
+
+    local total unique
+    total=$(wc -l < "$used_commands_file")
+    unique=$(awk -F ':::' '{sum += $2} END {print sum}' "$used_commands_file")
+
+    echo "Rebuild complete!"
+    echo " → $total unique commands recorded"
+    echo " → $unique total commands tallied"
+}
+
+
