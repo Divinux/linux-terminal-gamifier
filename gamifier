@@ -65,7 +65,7 @@ achievements_file="$SAVE_DIR/.achievements"
 streak_file="$SAVE_DIR/.streak"
 
 # Notification settings
-notify_on_new=false
+notify_on_new=true
 notify_on_reused=false
 notify_on_false_new=true
 notify_on_false_reused=false
@@ -223,7 +223,7 @@ Business Week:5 day streak:5:streak:LOCKED
 It's Been Two Weeks:Use the terminal daily for two weeks:14:streak:LOCKED
 Can't Stop Won't Stop:Use the terminal daily for a month:30:streak:LOCKED
 Seasonal Employee:Use the terminal daily for three months:60:streak:LOCKED
-Ok This Isn't Healthy:Use the terminal daily for an entire year:356:streak:LOCKED
+Server-grade Dedication:Use the terminal daily for an entire year:365:streak:LOCKED
 EOF
 fi
 
@@ -316,25 +316,6 @@ check_achievements() {
 }
 
 # Function to update or add command usage
-# update_command_usage() {
-# command="$(getlastcommand)"
-# # Use a subshell to avoid polluting the environment
-#     (
-#         export CMD="$command"
-#         awk -F ':::' '
-#             BEGIN { cmd = ENVIRON["CMD"] }
-#             $1 == cmd {
-#                 $2 += 1
-#                 found = 1
-#             }
-#             { print $1 ":::" $2 }
-#             END {
-#                 if (!found) print cmd ":::" 1
-#             }
-#         ' $used_commands_file > tmp && mv tmp $used_commands_file
-#     )
-# }
-
 update_command_usage() {
     local command="$1"
     local tmp_file
