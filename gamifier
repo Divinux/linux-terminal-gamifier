@@ -379,8 +379,8 @@ update_exp() {
     # Check if history file has been truncated
     if ! [ "$hist_size" = "" ]; then
         if [ "$new_count" -lt "$prev_hist_count" ] || [ "$new_count" -ge "$hist_size" ]; then
-            echo "Warning! HISTSIZE was reached! Gamifier will not work!"
-            echo "Please increase your HISTSIZE!"
+            echo "Warning! HISTFILESIZE was reached! Gamifier will not work!"
+            echo "Please increase your HISTFILESIZE!"
             return
         fi
     fi
