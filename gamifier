@@ -140,8 +140,8 @@ esac
 
 prev_hist_count=$(wc -l < "$histfile")
 
-# Get HISTSIZE limit
-hist_size=${HISTSIZE:-500}
+# Get HISTFILESIZE limit
+hist_size=${HISTFILESIZE-500}
 
 # Initialize achievements file if it doesn't exist
 if [ ! -f "$achievements_file" ]; then
@@ -377,10 +377,12 @@ update_exp() {
     local new_count=$(wc -l < "$histfile")
 
     # Check if history file has been truncated
-    if [ "$new_count" -lt "$prev_hist_count" ] || [ "$new_count" -ge "$hist_size" ]; then
-        echo "Warning! HISTSIZE was reached! Gamifier will not work!"
-        echo "Please increase your HISTSIZE!"
-        return
+    if ! [ "$hist_size" = "" ]; then
+        if [ "$new_count" -lt "$prev_hist_count" ] || [ "$new_count" -ge "$hist_size" ]; then
+            echo "Warning! HISTSIZE was reached! Gamifier will not work!"
+            echo "Please increase your HISTSIZE!"
+            return
+        fi
     fi
 
     if [ "$new_count" -gt "$prev_hist_count" ]; then
