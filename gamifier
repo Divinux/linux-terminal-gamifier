@@ -249,7 +249,7 @@ exp_needed_for_level() {
     if [ "$lvl" -eq 1 ]; then
         echo "$exp_base"
     else
-        echo $(echo "$exp_base * (($exp_increase_percent + 100) ^ ($lvl - 1)) / (100 ^ ($lvl - 1))" | bc)
+        echo "scale=0; $exp_base * (((100 + $exp_increase_percent) / 100) ^ ($lvl - 1))" | bc
     fi
 }
 
