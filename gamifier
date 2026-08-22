@@ -44,7 +44,7 @@
 # 5. Use ghelp to display a short info message.
 # 6. Use gupdate to update Linux Terminal Gamifier.
 # 7. Use gimport to import previous history into the used commands file.
-# 8. Use gmostused to display top 10 used commands
+# 8. Use gmostused to display top 10 used commands.
 #
 # Uninstall:
 # 1. Remove 'source ~/gamifier' and update_exp; from your bashrc, or if using zsh
@@ -611,7 +611,7 @@ ghelp() {
 # Use ghelp to display a short info message.
 # Use gupdate to update Linux Terminal Gamifier.
 # Use gimport to import previous history into the used commands file.
-# Use gmostused to display top 10 used commands
+# Use gmostused to display top 10 used commands.
 
 EOF
 }
