@@ -1,6 +1,6 @@
-# Linux Terminal Gamifier
+# Linux Terminal Gamifier v1.8
 
-![Description of the image](img/screenshot.png)
+![Description of the image](img/screenshot2.png)
 
 
 This script gamifies your terminal by tracking experience points and levels based on the number of commands you execute. Newly found commands give more EXP, repeated commands give less, and even incorrect commands still grant a small amount—at least you tried. Contains 14 unlockable ranks and 78 achievements. Supports bash and zsh shells.
